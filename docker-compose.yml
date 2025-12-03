@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # Service A: Nexus-API (Backend)
+  nexus-api:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    depends_on:
+      - nexus-db
+    environment:
+      - DATABASE_URL=postgres://user:password@nexus-db:5432/inventory
+
+  # Service B: Nexus-DB (Database)
+  nexus-db:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inventory
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:

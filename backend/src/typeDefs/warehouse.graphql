@@ -1,0 +1,14 @@
+type Warehouse {
+  id: ID!
+  name: String!
+  location: String!
+  capacity: Int
+  stocks: [StockItem]
+}
+
+# Relasi Many-to-Many antara Product & Warehouse
+type StockItem {
+  product: Product!
+  warehouse: Warehouse!
+  quantity: Int!
+}
