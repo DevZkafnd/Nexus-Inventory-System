@@ -155,3 +155,157 @@ Catatan: Sesuaikan dependencies dengan framework yang Anda pilih (misal Apollo S
 - Mengisi `client/` (frontend) minggu depan.
 - Memperkuat struktur backend (resolver, service, database).
 - Menyempurnakan `Dockerfile` dan `docker-compose.yml` sesuai kebutuhan produksi.
+
+## Progress Week 2
+
+**Tujuan**
+- Buat resolvers
+- Buat query dan mutation
+- Hubungkan ke database
+- Setup Prisma
+- Setup database koneksi
+
+**Ringkasan Progress**
+- Resolvers modular untuk `Product` dan `Transaction` selesai.
+- Computed fields `totalStock` dan `isLowStock` dihitung real-time dari `StockItem`.
+- Mutasi `transferStock` berjalan atomik dengan `prisma.$transaction`.
+- Koneksi DB via `pg` adapter (`@prisma/adapter-pg`) dan `Pool` dari `DATABASE_URL`.
+- Prisma v7 dikonfigurasi dengan `prisma.config.ts` dan `.env`.
+
+**Optimisasi Runtime**
+- Menghilangkan warning `--experimental-loader` dan deprecation `fs.Stats` dengan menjalankan hasil build JS murni, bukan `ts-node`.
+- Import internal ESM memakai ekstensi `.js` agar Node dapat resolve di `dist` (`src/index.ts:8`, `src/index.ts:9`, `src/index.ts:26`).
+- File `.graphql` dibaca dari `src` menggunakan `process.cwd()` (`src/index.ts:21`–`src/index.ts:23`) sehingga tidak perlu menyalin aset ke `dist`.
+
+**Setup Database Koneksi**
+- Edit `backend/.env`:
+```
+DATABASE_URL="postgresql://postgres@localhost:5432/inventory"
+SHADOW_DATABASE_URL="postgresql://postgres@localhost:5432/inventory_shadow"
+```
+- pgAdmin4 (opsional):
+  - Server Name: `Nexus`
+  - Host: `localhost`
+  - Port: `5432`
+  - Username: `postgres`
+  - Password: kosong (sesuai konfigurasi lokal Anda)
+  - Maintenance DB: `postgres` atau langsung `inventory`
+
+**Setup Prisma (v7)**
+- Konfigurasi: `backend/prisma.config.ts:4`
+  - `schema`: `prisma/schema.prisma`
+  - `migrations.path`: `prisma/migrations`
+  - `datasource.url`: dibaca dari `.env`
+  - `datasource.shadowDatabaseUrl`: dibaca dari `.env`
+- Perintah:
+```
+cd backend
+npx prisma generate
+npx prisma db push
+```
+
+**Hubungkan ke Database di Server**
+- Inisialisasi Prisma Client dengan adapter `pg` dan injeksi ke Apollo context: `backend/src/index.ts:31` dan `backend/src/index.ts:62`
+```
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg(pool)
+const prisma = new PrismaClient({ adapter, log: ['error'] })
+// context: async () => ({ prisma })
+```
+
+**Buat Resolvers**
+- Product Resolver dengan computed fields: `backend/src/resolvers/product.ts:19`
+  - `totalStock`: agregasi `_sum.quantity` dari `StockItem`
+  - `isLowStock`: cek `(totalStock < 10)`
+- Transaction Resolver dengan mutasi atomik: `backend/src/resolvers/transaction.ts:5`
+  - Validasi stok sumber, `update` decrement, `upsert` increment, `create` audit `Transaction`
+
+**Schema GraphQL**
+- Root types dan operasi: `backend/src/typeDefs/index.ts:1`
+- Tipe `Product` (+ computed fields): `backend/src/typeDefs/product.graphql:1`
+- Tipe transaksi dan enum: `backend/src/typeDefs/transaction.graphql:1`
+- Tipe warehouse dan stock item: `backend/src/typeDefs/warehouse.graphql:1`
+
+**Query & Mutation Contoh**
+- Ambil produk beserta computed fields:
+```
+query {
+  products {
+    id
+    sku
+    name
+    totalStock
+    isLowStock
+  }
+}
+```
+- Ambil produk by id:
+```
+query {
+  product(id: "1") {
+    id
+    name
+    totalStock
+  }
+}
+```
+- Transfer stok atomik:
+```
+mutation {
+  transferStock(
+    fromWarehouseId: "1"
+    toWarehouseId: "2"
+    productId: "1"
+    quantity: 5
+    note: "Rebalancing"
+  ) {
+    id
+    type
+    quantity
+    product { id name }
+    sourceWarehouse { id name }
+    targetWarehouse { id name }
+  }
+}
+```
+
+**Menjalankan Server**
+- Install dependencies (bila belum):
+```
+cd backend
+npm install
+npm install dotenv pg @prisma/adapter-pg @prisma/client prisma
+```
+- Generate client & sinkronkan schema:
+```
+npx prisma generate
+npx prisma db push
+```
+- Start server:
+```
+npm start
+```
+- URL GraphQL: `http://localhost:4000/`
+
+**Workflow Dev (Hot-Reload)**
+- Jalankan kompilasi TypeScript kontinu:
+```
+cd backend
+npx tsc -w
+```
+- Jalankan aplikasi dan reload saat `dist` berubah:
+```
+npx nodemon --watch dist --exec "node dist/index.js"
+```
+
+**Troubleshooting**
+- P1010 "User was denied access": gunakan user `postgres` lokal atau beri hak ke user aplikasi, lalu jalankan `npx prisma db push`.
+- Error Prisma v7 "engine type client"/adapter: pastikan memakai `@prisma/adapter-pg` seperti pada `backend/src/index.ts:31`.
+- TypeScript `rootDir` error untuk `prisma.config.ts`: pastikan `backend/tsconfig.json` hanya `include: ["src/**/*"]` dan exclude `prisma.config.ts`.
+ - ENOENT saat membaca `.graphql` di `dist`: pastikan path membaca skema menggunakan `process.cwd()` seperti pada `backend/src/index.ts:21`–`23`.
+
+**Catatan**
+- Untuk produksi, gunakan user aplikasi terpisah dengan password kuat dan batasi privilege.
+- Pertimbangkan migrasi berbasis `npx prisma migrate dev` untuk lingkungan pengembangan.

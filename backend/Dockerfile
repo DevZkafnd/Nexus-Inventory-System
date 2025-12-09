@@ -1,11 +1,11 @@
 # Menggunakan node alpine agar ringan
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
 # Copy package.json & install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci || npm install
 
 # Copy semua source code
 COPY . .

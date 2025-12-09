@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransactionType {
+  INBOUND
+  OUTBOUND
+  TRANSFER
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  sku          String   @unique
+  name         String
+  category     String?
+  priceCents   Int?
+  dimensions   String?
+  stocks       StockItem[]
+  transactions Transaction[]
+}
+
+model Warehouse {
+  id        String     @id @default(uuid())
+  name      String
+  location  String
+  capacity  Int?
+  stocks    StockItem[]
+  sourceTx  Transaction[] @relation("SourceWarehouse")
+  targetTx  Transaction[] @relation("TargetWarehouse")
+}
+
+model StockItem {
+  id          String    @id @default(uuid())
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId String
+  quantity    Int       @default(0)
+
+  @@unique([productId, warehouseId])
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  type             TransactionType
+  product          Product         @relation(fields: [productId], references: [id])
+  productId        String
+  sourceWarehouse  Warehouse?      @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  sourceWarehouseId String?
+  targetWarehouse  Warehouse?      @relation("TargetWarehouse", fields: [targetWarehouseId], references: [id])
+  targetWarehouseId String?
+  quantity         Int
+  timestamp        DateTime        @default(now())
+  referenceNote    String?
+}
+
