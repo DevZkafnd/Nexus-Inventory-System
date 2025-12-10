@@ -11,6 +11,12 @@ export const rootTypeDefs = `#graphql
     # Master Data
     createWarehouse(name: String!, location: String!, capacity: Int): Warehouse
     createProduct(sku: String!, name: String!, category: String, price: Float): Product
+    updateProduct(
+      id: ID!
+      name: String
+      price: Float
+      category: String
+    ): Product
 
     # Core Business Logic
     inboundStock(warehouseId: ID!, productId: ID!, quantity: Int!, note: String): StockTransaction

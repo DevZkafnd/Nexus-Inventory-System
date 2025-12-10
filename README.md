@@ -1,311 +1,684 @@
-# Nexus Inventory System — Panduan Menjalankan Proyek
+# Contoh Mutation Query Apollo GraphQL
 
-Dokumen ini menjelaskan cara menyiapkan lingkungan, menjalankan proyek dengan Docker dan secara lokal, serta alur kerja pengembangan. Diletakkan di root repo (`nexus-inventory-system/`).
+Dokumen ini menyediakan contoh mutation query untuk setiap model dalam sistem inventaris, termasuk operasi `create`, `update`, dan `delete`. Setiap contoh `create` dilengkapi dengan 5 baris data untuk demonstrasi.
 
-## Ringkasan
-- Backend ditulis dengan TypeScript (entry point: `backend/src/index.ts`).
-- Skema GraphQL berada di `backend/src/typeDefs/*.graphql` dan `backend/src/typeDefs/index.ts`.
-- `client/` saat ini kosong dan akan diisi kemudian.
-- `docker-compose.yml` dan `backend/Dockerfile` tersedia, namun perlu diisi sesuai kebutuhan Anda.
+## Daftar Isi
+1.  [Product Mutations](#1-product-mutations)
+    *   [Create Product](#create-product)
+    *   [Update Product](#update-product)
+    *   [Delete Product](#delete-product)
+2.  [Warehouse Mutations](#2-warehouse-mutations)
+    *   [Create Warehouse](#create-warehouse)
+    *   [Update Warehouse](#update-warehouse)
+    *   [Delete Warehouse](#delete-warehouse)
+3.  [StockItem Mutations](#3-stockitem-mutations)
+    *   [Create StockItem](#create-stockitem)
+    *   [Update StockItem](#update-stockitem)
+    *   [Delete StockItem](#delete-stockitem)
+4.  [Transaction Mutations](#4-transaction-mutations)
+    *   [Inbound Stock](#inbound-stock)
+    *   [Outbound Stock](#outbound-stock)
+    *   [Transfer Stock](#transfer-stock)
 
-## Prasyarat
-- Windows + PowerShell.
-- Docker Desktop (WSL2 disarankan). Unduh: https://www.docker.com/products/docker-desktop
-- Node.js LTS (disarankan v18+). Unduh: https://nodejs.org/
-- Package manager: `npm` atau `pnpm` (opsional).
+---
 
-## Struktur Proyek
-```
-nexus-inventory-system/
-├── docker-compose.yml
-├── README.md
-├── backend/
-│   ├── Dockerfile
-│   └── src/
-│       ├── index.ts
-│       └── typeDefs/
-│           ├── index.ts
-│           ├── product.graphql
-│           ├── warehouse.graphql
-│           └── transaction.graphql
-└── client/
-```
+## 1. Product Mutations
 
-## Menjalankan dengan Docker
-Pada tahap ini, file `Dockerfile` dan `docker-compose.yml` masih kosong. Berikut contoh minimal yang direkomendasikan agar backend dapat berjalan.
+### Create Product
 
-### Contoh `backend/Dockerfile`
-```
-# Gunakan image Node.js ringan
-FROM node:18-alpine
-
-# Direktori kerja dalam container
-WORKDIR /app
-
-# Salin file manifest terlebih dahulu agar cache efisien
-COPY package*.json ./
-
-# Install dependencies (ganti dengan pnpm bila diperlukan)
-RUN npm ci --only=production || npm install --production
-
-# Salin source code
-COPY src ./src
-
-# Build TypeScript ke dist (pastikan ada tsconfig.json dan script build)
-# Jika belum ada proses build, Anda bisa menggunakan ts-node di tahap awal.
-# Berikut contoh menggunakan ts-node:
-RUN npm install --no-save ts-node typescript
-
-# Default port
-ENV PORT=4000
-
-# Jalankan server (sesuaikan dengan entry point Anda)
-CMD ["npx", "ts-node", "src/index.ts"]
-```
-
-### Contoh `docker-compose.yml`
-```
-services:
-  backend:
-    build: ./backend
-    container_name: nexus-inventory-backend
-    ports:
-      - "4000:4000"
-    environment:
-      - NODE_ENV=production
-      - PORT=4000
-    # Jika butuh env file khusus:
-    # env_file:
-    #   - ./backend/.env
-    # Opsi volume untuk pengembangan (opsional):
-    # volumes:
-    #   - ./backend/src:/app/src:ro
-```
-
-### Menjalankan
-- Jalankan perintah berikut di root repo:
-  - `docker compose up --build`
-- Setelah container berjalan, server GraphQL biasanya tersedia di `http://localhost:4000/` (sesuaikan jika Anda mengganti port).
-- Hentikan:
-  - `docker compose down`
-- Rebuild bila ada perubahan signifikan:
-  - `docker compose build --no-cache`
-
-## Menjalankan Secara Lokal (Tanpa Docker)
-Skenario ini berguna untuk pengembangan cepat sebelum membuat image.
-
-1) Siapkan `package.json` backend (contoh rekomendasi):
-```
-{
-  "name": "nexus-inventory-backend",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "graphql": "^16.0.0",
-    "apollo-server": "^3.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "ts-node": "^10.0.0"
-  }
-}
-```
-
-2) Install dependencies di folder `backend/`:
-- `npm install`
-
-3) Jalankan pengembangan (dev):
-- `npm run dev`
-
-4) Build dan start (produksi lokal):
-- `npm run build`
-- `npm run start`
-
-Catatan: Sesuaikan dependencies dengan framework yang Anda pilih (misal Apollo Server, Yoga, atau lainnya).
-
-## Alur Kerja Pengembangan
-- Entry point backend: `backend/src/index.ts` — tempat inisialisasi server GraphQL.
-- Skema GraphQL: letakkan definisi di `backend/src/typeDefs/*.graphql` dan agregasikan di `backend/src/typeDefs/index.ts`.
-- Tambahkan resolver, service, dan koneksi database di struktur yang Anda inginkan (misal `backend/src/resolvers`, `backend/src/services`).
-
-## Variabel Lingkungan
-- `PORT`: default `4000`.
-- `NODE_ENV`: `development` atau `production`.
-- Tambahkan file `.env` bila diperlukan dan muat di aplikasi (misal via `dotenv`).
-
-## Troubleshooting
-- Port conflict: ubah `PORT` di env atau mapping `ports` di Compose.
-- Rebuild tidak berefek: gunakan `docker compose build --no-cache` dan `docker compose up -d`.
-- Docker Desktop tidak berjalan: pastikan WSL2 aktif dan restart Docker.
-- Log container: `docker compose logs -f backend`.
-
-## FAQ Singkat
-- Mengapa server tidak muncul di `localhost:4000`?
-  - Periksa apakah `PORT` di container dan mapping `ports` sesuai.
-  - Pastikan entry point benar (`src/index.ts`) dan tidak error saat runtime.
-- Bisakah hot-reload di Docker?
-  - Untuk pengembangan, gunakan volume untuk mount `src` dan jalankan tooling seperti `ts-node-dev`.
-
-## Langkah Berikutnya
-- Mengisi `client/` (frontend) minggu depan.
-- Memperkuat struktur backend (resolver, service, database).
-- Menyempurnakan `Dockerfile` dan `docker-compose.yml` sesuai kebutuhan produksi.
-
-## Progress Week 2
-
-**Tujuan**
-- Buat resolvers
-- Buat query dan mutation
-- Hubungkan ke database
-- Setup Prisma
-- Setup database koneksi
-
-**Ringkasan Progress**
-- Resolvers modular untuk `Product` dan `Transaction` selesai.
-- Computed fields `totalStock` dan `isLowStock` dihitung real-time dari `StockItem`.
-- Mutasi `transferStock` berjalan atomik dengan `prisma.$transaction`.
-- Koneksi DB via `pg` adapter (`@prisma/adapter-pg`) dan `Pool` dari `DATABASE_URL`.
-- Prisma v7 dikonfigurasi dengan `prisma.config.ts` dan `.env`.
-
-**Optimisasi Runtime**
-- Menghilangkan warning `--experimental-loader` dan deprecation `fs.Stats` dengan menjalankan hasil build JS murni, bukan `ts-node`.
-- Import internal ESM memakai ekstensi `.js` agar Node dapat resolve di `dist` (`src/index.ts:8`, `src/index.ts:9`, `src/index.ts:26`).
-- File `.graphql` dibaca dari `src` menggunakan `process.cwd()` (`src/index.ts:21`–`src/index.ts:23`) sehingga tidak perlu menyalin aset ke `dist`.
-
-**Setup Database Koneksi**
-- Edit `backend/.env`:
-```
-DATABASE_URL="postgresql://postgres@localhost:5432/inventory"
-SHADOW_DATABASE_URL="postgresql://postgres@localhost:5432/inventory_shadow"
-```
-- pgAdmin4 (opsional):
-  - Server Name: `Nexus`
-  - Host: `localhost`
-  - Port: `5432`
-  - Username: `postgres`
-  - Password: kosong (sesuai konfigurasi lokal Anda)
-  - Maintenance DB: `postgres` atau langsung `inventory`
-
-**Setup Prisma (v7)**
-- Konfigurasi: `backend/prisma.config.ts:4`
-  - `schema`: `prisma/schema.prisma`
-  - `migrations.path`: `prisma/migrations`
-  - `datasource.url`: dibaca dari `.env`
-  - `datasource.shadowDatabaseUrl`: dibaca dari `.env`
-- Perintah:
-```
-cd backend
-npx prisma generate
-npx prisma db push
-```
-
-**Hubungkan ke Database di Server**
-- Inisialisasi Prisma Client dengan adapter `pg` dan injeksi ke Apollo context: `backend/src/index.ts:31` dan `backend/src/index.ts:62`
-```
-import { Pool } from 'pg'
-import { PrismaPg } from '@prisma/adapter-pg'
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter, log: ['error'] })
-// context: async () => ({ prisma })
-```
-
-**Buat Resolvers**
-- Product Resolver dengan computed fields: `backend/src/resolvers/product.ts:19`
-  - `totalStock`: agregasi `_sum.quantity` dari `StockItem`
-  - `isLowStock`: cek `(totalStock < 10)`
-- Transaction Resolver dengan mutasi atomik: `backend/src/resolvers/transaction.ts:5`
-  - Validasi stok sumber, `update` decrement, `upsert` increment, `create` audit `Transaction`
-
-**Schema GraphQL**
-- Root types dan operasi: `backend/src/typeDefs/index.ts:1`
-- Tipe `Product` (+ computed fields): `backend/src/typeDefs/product.graphql:1`
-- Tipe transaksi dan enum: `backend/src/typeDefs/transaction.graphql:1`
-- Tipe warehouse dan stock item: `backend/src/typeDefs/warehouse.graphql:1`
-
-**Query & Mutation Contoh**
-- Ambil produk beserta computed fields:
-```
-query {
-  products {
+```graphql
+mutation CreateProducts {
+  createProduct(
+    sku: "SKU001"
+    name: "Laptop Gaming"
+    category: "Electronics"
+    price: 150000
+  ) {
     id
+    name
     sku
-    name
-    totalStock
-    isLowStock
   }
-}
-```
-- Ambil produk by id:
-```
-query {
-  product(id: "1") {
+  createProduct2: createProduct(
+    sku: "SKU002"
+    name: "Mouse Wireless"
+    category: "Electronics"
+    price: 2500
+  ) {
     id
     name
-    totalStock
+    sku
+  }
+  createProduct3: createProduct(
+    sku: "SKU003"
+    name: "Keyboard Mekanik"
+    category: "Electronics"
+    price: 7500
+  ) {
+    id
+    name
+    sku
+  }
+  createProduct4: createProduct(
+    sku: "SKU004"
+    name: "Monitor Ultrawide"
+    category: "Electronics"
+    price: 300000
+  ) {
+    id
+    name
+    sku
+  }
+  createProduct5: createProduct(
+    sku: "SKU005"
+    name: "Webcam Full HD"
+    category: "Electronics"
+    price: 12000
+  ) {
+    id
+    name
+    sku
   }
 }
 ```
-- Transfer stok atomik:
+
+### Update Product
+
+```graphql
+mutation UpdateProduct {
+  updateProduct(
+    id: "PRODUCT_ID_TO_UPDATE"
+    name: "Laptop Gaming Pro"
+    price: 160000
+  ) {
+    id
+    name
+    price
+  }
+}
 ```
-mutation {
-  transferStock(
-    fromWarehouseId: "1"
-    toWarehouseId: "2"
-    productId: "1"
-    quantity: 5
-    note: "Rebalancing"
+
+### Delete Product
+
+```graphql
+mutation DeleteProduct {
+  deleteProduct(id: "PRODUCT_ID_TO_DELETE") {
+    id
+    name
+  }
+}
+```
+
+---
+
+## 2. Warehouse Mutations
+
+### Create Warehouse
+
+```graphql
+mutation CreateWarehouses {
+  createWarehouse(
+    name: "Gudang Pusat Jakarta"
+    location: "Jakarta Pusat"
+    capacity: 10000
+  ) {
+    id
+    name
+    location
+  }
+  createWarehouse2: createWarehouse(
+    name: "Gudang Cabang Surabaya"
+    location: "Surabaya"
+    capacity: 5000
+  ) {
+    id
+    name
+    location
+  }
+  createWarehouse3: createWarehouse(
+    name: "Gudang Logistik Bandung"
+    location: "Bandung"
+    capacity: 7500
+  ) {
+    id
+    name
+    location
+  }
+  createWarehouse4: createWarehouse(
+    name: "Gudang Transit Medan"
+    location: "Medan"
+    capacity: 2000
+  ) {
+    id
+    name
+    location
+  }
+  createWarehouse5: createWarehouse(
+    name: "Gudang Utama Semarang"
+    location: "Semarang"
+    capacity: 6000
+  ) {
+    id
+    name
+    location
+  }
+}
+```
+
+### Update Warehouse
+
+```graphql
+mutation UpdateWarehouse {
+  updateWarehouse(id: "WAREHOUSE_ID_TO_UPDATE",
+    name: "Gudang Pusat Jakarta Baru"
+    capacity: 12000
+  ) {
+    id
+    name
+    capacity
+  }
+}
+```
+
+### Delete Warehouse
+
+```graphql
+mutation DeleteWarehouse {
+  deleteWarehouse(id: "WAREHOUSE_ID_TO_DELETE") {
+    id
+    name
+  }
+}
+```
+
+---
+
+## 3. StockItem Mutations
+
+### Create StockItem
+
+Catatan: `productId` dan `warehouseId` harus berupa ID yang sudah ada dari `Product` dan `Warehouse` yang telah dibuat.
+
+```graphql
+mutation CreateStockItems {
+  createStockItem(
+    productId: "PRODUCT_ID_1"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 50
+  ) {
+    id
+    product { name }
+    warehouse { name }
+    quantity
+  }
+  createStockItem2: createStockItem(
+    productId: "PRODUCT_ID_2"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 100
+  ) {
+    id
+    product { name }
+    warehouse { name }
+    quantity
+  }
+  createStockItem3: createStockItem(
+    productId: "PRODUCT_ID_1"
+    warehouseId: "WAREHOUSE_ID_2"
+    quantity: 20
+  ) {
+    id
+    product { name }
+    warehouse { name }
+    quantity
+  }
+  createStockItem4: createStockItem(
+    productId: "PRODUCT_ID_3"
+    warehouseId: "WAREHOUSE_ID_2"
+    quantity: 75
+  ) {
+    id
+    product { name }
+    warehouse { name }
+    quantity
+  }
+  createStockItem5: createStockItem(
+    productId: "PRODUCT_ID_4"
+    warehouseId: "WAREHOUSE_ID_3"
+    quantity: 10
+  ) {
+    id
+    product { name }
+    warehouse { name }
+    quantity
+  }
+}
+```
+
+### Update StockItem
+
+Catatan: `id` adalah ID dari `StockItem` yang ingin diperbarui.
+
+```graphql
+mutation UpdateStockItem {
+  updateStockItem(id: "STOCK_ITEM_ID_TO_UPDATE",
+    quantity: 60
+  ) {
+    id
+    quantity
+  }
+}
+```
+
+### Delete StockItem
+
+Catatan: `id` adalah ID dari `StockItem` yang ingin dihapus.
+
+```graphql
+mutation DeleteStockItem {
+  deleteStockItem(id: "STOCK_ITEM_ID_TO_DELETE") {
+    id
+    product { name }
+    warehouse { name }
+  }
+}
+```
+
+---
+
+## 4. Transaction Mutations
+
+### Inbound Stock
+
+Catatan: `productId` dan `warehouseId` harus berupa ID yang sudah ada.
+
+```graphql
+mutation InboundStocks {
+  inboundStock(
+    productId: "PRODUCT_ID_1"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 10
+    note: "Penerimaan barang baru dari supplier A"
   ) {
     id
     type
+    product { name }
+    targetWarehouse { name }
     quantity
-    product { id name }
-    sourceWarehouse { id name }
-    targetWarehouse { id name }
+  }
+  inboundStock2: inboundStock(
+    productId: "PRODUCT_ID_2"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 5
+    note: "Restock produk SKU002"
+  ) {
+    id
+    type
+    product { name }
+    targetWarehouse { name }
+    quantity
+  }
+  inboundStock3: inboundStock(
+    productId: "PRODUCT_ID_3"
+    warehouseId: "WAREHOUSE_ID_2"
+    quantity: 15
+    note: "Penerimaan dari retur pelanggan"
+  ) {
+    id
+    type
+    product { name }
+    targetWarehouse { name }
+    quantity
+  }
+  inboundStock4: inboundStock(
+    productId: "PRODUCT_ID_4"
+    warehouseId: "WAREHOUSE_ID_3"
+    quantity: 2
+    note: "Tambahan stok untuk event"
+  ) {
+    id
+    type
+    product { name }
+    targetWarehouse { name }
+    quantity
+  }
+  inboundStock5: inboundStock(
+    productId: "PRODUCT_ID_5"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 8
+    note: "Penerimaan produk baru SKU005"
+  ) {
+    id
+    type
+    product { name }
+    targetWarehouse { name }
+    quantity
   }
 }
 ```
 
-**Menjalankan Server**
-- Install dependencies (bila belum):
-```
-cd backend
-npm install
-npm install dotenv pg @prisma/adapter-pg @prisma/client prisma
-```
-- Generate client & sinkronkan schema:
-```
-npx prisma generate
-npx prisma db push
-```
-- Start server:
-```
-npm start
-```
-- URL GraphQL: `http://localhost:4000/`
+### Outbound Stock
 
-**Workflow Dev (Hot-Reload)**
-- Jalankan kompilasi TypeScript kontinu:
-```
-cd backend
-npx tsc -w
-```
-- Jalankan aplikasi dan reload saat `dist` berubah:
-```
-npx nodemon --watch dist --exec "node dist/index.js"
+Catatan: `productId` dan `warehouseId` harus berupa ID yang sudah ada.
+
+```graphql
+mutation OutboundStocks {
+  outboundStock(
+    productId: "PRODUCT_ID_1"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 3
+    note: "Pengiriman pesanan pelanggan #123"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    quantity
+  }
+  outboundStock2: outboundStock(
+    productId: "PRODUCT_ID_2"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 1
+    note: "Pengiriman pesanan pelanggan #124"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    quantity
+  }
+  outboundStock3: outboundStock(
+    productId: "PRODUCT_ID_3"
+    warehouseId: "WAREHOUSE_ID_2"
+    quantity: 5
+    note: "Pengiriman ke toko retail X"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    quantity
+  }
+  outboundStock4: outboundStock(
+    productId: "PRODUCT_ID_4"
+    warehouseId: "WAREHOUSE_ID_3"
+    quantity: 1
+    note: "Pengiriman sampel produk"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    quantity
+  }
+  outboundStock5: outboundStock(
+    productId: "PRODUCT_ID_5"
+    warehouseId: "WAREHOUSE_ID_1"
+    quantity: 2
+    note: "Pengiriman pesanan pelanggan #125"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    quantity
+  }
+}
 ```
 
-**Troubleshooting**
-- P1010 "User was denied access": gunakan user `postgres` lokal atau beri hak ke user aplikasi, lalu jalankan `npx prisma db push`.
-- Error Prisma v7 "engine type client"/adapter: pastikan memakai `@prisma/adapter-pg` seperti pada `backend/src/index.ts:31`.
-- TypeScript `rootDir` error untuk `prisma.config.ts`: pastikan `backend/tsconfig.json` hanya `include: ["src/**/*"]` dan exclude `prisma.config.ts`.
- - ENOENT saat membaca `.graphql` di `dist`: pastikan path membaca skema menggunakan `process.cwd()` seperti pada `backend/src/index.ts:21`–`23`.
+### Transfer Stock
 
-**Catatan**
-- Untuk produksi, gunakan user aplikasi terpisah dengan password kuat dan batasi privilege.
-- Pertimbangkan migrasi berbasis `npx prisma migrate dev` untuk lingkungan pengembangan.
+Catatan: `productId`, `sourceWarehouseId`, dan `targetWarehouseId` harus berupa ID yang sudah ada.
+
+```graphql
+mutation TransferStocks {
+  transferStock(
+    productId: "PRODUCT_ID_1"
+    fromWarehouseId: "WAREHOUSE_ID_1"
+    toWarehouseId: "WAREHOUSE_ID_2"
+    quantity: 5
+    note: "Transfer stok antar gudang"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    targetWarehouse { name }
+    quantity
+  }
+  transferStock2: transferStock(
+    productId: "PRODUCT_ID_2"
+    fromWarehouseId: "WAREHOUSE_ID_1"
+    toWarehouseId: "WAREHOUSE_ID_3"
+    quantity: 2
+    note: "Transfer untuk kebutuhan regional"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    targetWarehouse { name }
+    quantity
+  }
+  transferStock3: transferStock(
+    productId: "PRODUCT_ID_3"
+    fromWarehouseId: "WAREHOUSE_ID_2"
+    toWarehouseId: "WAREHOUSE_ID_1"
+    quantity: 10
+    note: "Pengembalian stok ke gudang pusat"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    targetWarehouse { name }
+    quantity
+  }
+  transferStock4: transferStock(
+    productId: "PRODUCT_ID_4"
+    fromWarehouseId: "WAREHOUSE_ID_3"
+    toWarehouseId: "WAREHOUSE_ID_2"
+    quantity: 1
+    note: "Transfer stok darurat"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    targetWarehouse { name }
+    quantity
+  }
+  transferStock5: transferStock(
+    productId: "PRODUCT_ID_5"
+    fromWarehouseId: "WAREHOUSE_ID_1"
+    toWarehouseId: "WAREHOUSE_ID_3"
+    quantity: 3
+    note: "Transfer stok untuk promosi"
+  ) {
+    id
+    type
+    product { name }
+    sourceWarehouse { name }
+    targetWarehouse { name }
+    quantity
+  }
+}
+```
+
+---
+
+## 5. Mengakses Database di Docker
+
+Jika Anda menggunakan Docker Desktop dan ingin memeriksa data langsung di database PostgreSQL yang berjalan di dalam kontainer, Anda bisa menggunakan perintah `docker exec`.
+
+### 1. Temukan Nama atau ID Kontainer Database
+
+Pertama, Anda perlu mengetahui nama atau ID kontainer database PostgreSQL Anda. Anda bisa melihatnya dengan perintah berikut:
+
+```bash
+docker ps
+```
+
+Cari kontainer yang menjalankan PostgreSQL (biasanya memiliki nama seperti `postgres` atau `db`). Catat `CONTAINER ID` atau `NAMES` dari kontainer tersebut.
+
+### 2. Akses Shell di Dalam Kontainer Database
+
+Gunakan perintah `docker exec` untuk masuk ke dalam shell kontainer database. Ganti `<CONTAINER_ID_OR_NAME>` dengan ID atau nama kontainer yang Anda temukan.
+
+```bash
+docker exec -it <CONTAINER_ID_OR_NAME> bash
+```
+
+### 3. Akses PostgreSQL Client (psql)
+
+Setelah berada di dalam shell kontainer, Anda bisa mengakses klien `psql` untuk berinteraksi dengan database. Ganti `<DATABASE_NAME>` dengan nama database Anda (misalnya `nexus_inventory`).
+
+```bash
+psql -U postgres -d <DATABASE_NAME>
+```
+
+Jika Anda tidak yakin dengan nama database, Anda bisa mencoba `psql -U postgres` dan kemudian menggunakan `\l` untuk melihat daftar database.
+
+### 4. Perintah SQL untuk Melihat Tabel dan Data
+
+Setelah masuk ke `psql`, Anda bisa menggunakan perintah SQL berikut:
+
+*   **Melihat semua tabel:**
+    ```sql
+    \dt
+    ```
+
+*   **Melihat isi data dari sebuah tabel:**
+    Ganti `<TABLE_NAME>` dengan nama tabel yang ingin Anda lihat (misalnya `Product`, `Warehouse`, `StockItem`, `Transaction`).
+    **Penting:** Pastikan setiap perintah SQL diakhiri dengan titik koma (`;`).
+    ```sql
+    SELECT * FROM "<TABLE_NAME>";
+    ```
+    Contoh:
+    ```sql
+    SELECT * FROM "Product";
+    SELECT * FROM "Warehouse";
+    SELECT * FROM "StockItem";
+    SELECT * FROM "Transaction";
+    ```
+
+*   **Keluar dari psql:**
+    ```sql
+    \q
+    ```
+
+*   **Keluar dari shell kontainer:**
+    ```bash
+    exit
+    ```
+
+---
+
+## 6. Panduan Seeding Data dan Pengujian Mutasi Menggunakan Apollo Sandbox
+
+Ini adalah panduan langkah demi langkah untuk melakukan seeding data awal dan menguji mutasi utama menggunakan Apollo Sandbox, yang sangat penting untuk memverifikasi fungsionalitas backend Anda.
+
+### 1. Cara Mengakses Tool (Apollo Sandbox)
+
+Saat Anda menjalankan `npm start`, terminal akan menampilkan: `🚀 Server ready at http://localhost:4000/`
+Buka link tersebut di browser (Chrome/Edge). Anda akan melihat tampilan antarmuka grafis. Itulah Apollo Sandbox. Anda tidak perlu menginstal Postman terpisah jika tidak mau.
+
+### 2. Skenario "Seeding Data" (Wajib Dilakukan)
+
+Agar fitur utama `transferStock` bisa dites, Anda harus punya data dulu. Logikanya: "Bagaimana mau transfer barang kalau Gudangnya belum ada dan Barangnya belum dibuat?"
+
+Silakan copy-paste Mutation berikut ke Apollo Sandbox Anda secara berurutan:
+
+#### Langkah A: Buat 2 Gudang
+
+Kita butuh minimal 2 gudang untuk tes transfer.
+
+**Mutation 1 (Gudang Asal):**
+```graphql
+mutation {
+  createWarehouse(
+    name: "Gudang Jakarta Pusat"
+    location: "Tanah Abang, Jakarta"
+    capacity: 1000
+  ) {
+    id
+    name
+  }
+}
+```
+(Catat `id` yang muncul di respon, misal: `wh-jkt-01`)
+
+**Mutation 2 (Gudang Tujuan):**
+```graphql
+mutation {
+  createWarehouse(
+    name: "Gudang Surabaya"
+    location: "Rungkut, Surabaya"
+    capacity: 500
+  ) {
+    id
+    name
+  }
+}
+```
+(Catat `id` yang muncul, misal: `wh-sby-01`)
+
+#### Langkah B: Buat Produk
+
+Buat satu barang untuk dites.
+
+```graphql
+mutation {
+  createProduct(
+    sku: "LAPTOP-001"
+    name: "MacBook Pro M3"
+    category: "Electronics"
+    price: 25000000 # Menggunakan price
+  ) {
+    id
+    name
+    totalStock # Harusnya masih 0
+  }
+}
+```
+(Catat `id` produk, misal: `prod-mac-01`)
+
+#### Langkah C: Isi Stok Awal (Inbound)
+
+Gudang tidak boleh kosong saat mau transfer. Kita harus pura-pura ada barang masuk dari supplier.
+
+```graphql
+mutation {
+  inboundStock(
+    warehouseId: "MASUKAN_ID_GUDANG_JAKARTA_DISINI" # Ganti dengan ID Gudang Jakarta
+    productId: "MASUKAN_ID_PRODUK_DISINI" # Ganti dengan ID Produk
+    quantity: 50
+    note: "Stok Awal dari Apple Inc."
+  ) {
+    id
+    quantity
+    targetWarehouse { name }
+    product { totalStock } # Harusnya jadi 50
+  }
+}
+```
+
+#### Langkah D: Uji Coba Transfer (Fitur Utama Week 2)
+
+Ini adalah pembuktian bahwa logic `transaction.ts` Anda jalan.
+
+```graphql
+mutation {
+  transferStock(
+    fromWarehouseId: "MASUKAN_ID_GUDANG_JAKARTA_DISINI" # Ganti dengan ID Gudang Jakarta
+    toWarehouseId: "MASUKAN_ID_GUDANG_SURABAYA_DISINI" # Ganti dengan ID Gudang Surabaya
+    productId: "MASUKAN_ID_PRODUK_DISINI" # Ganti dengan ID Produk
+    quantity: 10
+    note: "Mutasi ke Cabang Surabaya"
+  ) {
+    id
+    type
+    sourceWarehouse { name }
+    targetWarehouse { name }
+  }
+}
+```
+

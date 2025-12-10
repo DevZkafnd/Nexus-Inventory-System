@@ -38,4 +38,17 @@ export const productResolvers = {
       return (aggregate._sum.quantity || 0) < 10
     },
   },
+
+  Mutation: {
+    updateProduct: async (_: any, { id, name, price: priceCents, category }: any, { prisma }: { prisma: PrismaClient }) => {
+      return await prisma.product.update({
+        where: { id },
+        data: {
+          name,
+          priceCents,
+          category,
+        },
+      });
+    },
+  },
 }

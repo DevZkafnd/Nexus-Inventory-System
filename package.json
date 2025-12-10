@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "setup": "ts-node-dev --respawn backend/src/server.ts"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0"
+  }
+}
