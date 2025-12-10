@@ -10,6 +10,7 @@ import { transactionResolvers } from './resolvers/transaction.js';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { GraphQLScalarType, Kind } from 'graphql';
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 process.env.PRISMA_CLIENT_ENGINE_TYPE = process.env.PRISMA_CLIENT_ENGINE_TYPE || 'library';
 
 // [2] --- PERBAIKAN DI SINI: Ciptakan __dirname secara manual ---
@@ -50,10 +51,76 @@ const resolvers = {
   }),
 };
 
+async function ensurePlaygroundSeed() {
+  const wA = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground A' } })
+  const wB = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground B' } })
+  const warehouseA = wA ?? (await prisma.warehouse.create({ data: { name: 'Gudang Playground A', location: 'Jakarta', capacity: 100 } }))
+  const warehouseB = wB ?? (await prisma.warehouse.create({ data: { name: 'Gudang Playground B', location: 'Bandung', capacity: 80 } }))
+
+  const product = await prisma.product.upsert({
+    where: { sku: 'SKU-PLAYGROUND-1' },
+    update: {},
+    create: { sku: 'SKU-PLAYGROUND-1', name: 'Produk Playground', category: 'Kategori', priceCents: 1250 },
+  })
+
+  return { warehouseAId: warehouseA.id, warehouseBId: warehouseB.id, productId: product.id }
+}
+
+const seed = await ensurePlaygroundSeed()
+
+const defaultDocument = `
+# Langkah awal: cek data seed yang sudah disiapkan
+query SeedCheck {
+  products { id sku name price }
+  warehouses { id name location capacity }
+}
+
+# Contoh create, bisa diubah nilainya sebelum run
+mutation CreateWarehouseSample {
+  createWarehouse(name: "Gudang Sample", location: "Surabaya", capacity: 120) { id name location capacity }
+}
+
+mutation CreateProductSample {
+  createProduct(sku: "SKU-SAMPLE-001", name: "Produk Sample", category: "Kategori", price: 12.5) { id sku name category price }
+}
+
+# Operasi yang langsung bisa jalan menggunakan ID seed
+mutation InboundStockPlayground {
+  inboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 10, note: "Restock") {
+    id type quantity timestamp referenceNote
+  }
+}
+
+mutation OutboundStockPlayground {
+  outboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 5, note: "Kirim") {
+    id type quantity timestamp referenceNote
+  }
+}
+
+mutation TransferStockPlayground {
+  transferStock(fromWarehouseId: "${seed.warehouseAId}", toWarehouseId: "${seed.warehouseBId}", productId: "${seed.productId}", quantity: 3, note: "Mutasi") {
+    id type quantity sourceWarehouse { id name } targetWarehouse { id name } referenceNote
+  }
+}
+
+mutation UpdateProductPlayground {
+  updateProduct(id: "${seed.productId}", name: "Nama Baru Playground", price: 99.99, category: "Kategori Baru") {
+    id name price category
+  }
+}
+`;
+
 // Inisiasi Server
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: true,
+  plugins: [
+    ApolloServerPluginLandingPageLocalDefault({
+      embed: true,
+      document: defaultDocument,
+    }),
+  ],
 });
 
 // Jalankan Server dengan top-level await (Fitur modern)

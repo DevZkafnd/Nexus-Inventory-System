@@ -17,7 +17,7 @@ model Product {
   sku          String   @unique
   name         String
   category     String?
-  priceCents   Float?
+  priceCents   Int?
   dimensions   String?
   stocks       StockItem[]
   transactions Transaction[]

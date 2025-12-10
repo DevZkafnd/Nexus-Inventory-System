@@ -8,6 +8,11 @@ export const productResolvers = {
         },
     },
     Product: {
+        price: async (parent, _, __) => {
+            if (parent.priceCents == null)
+                return null;
+            return Math.round(parent.priceCents) / 100;
+        },
         totalStock: async (parent, _, { prisma }) => {
             const aggregate = await prisma.stockItem.aggregate({
                 _sum: { quantity: true },
@@ -24,7 +29,8 @@ export const productResolvers = {
         },
     },
     Mutation: {
-        updateProduct: async (_, { id, name, price: priceCents, category }, { prisma }) => {
+        updateProduct: async (_, { id, name, price, category }, { prisma }) => {
+            const priceCents = price != null ? Math.round(price * 100) : undefined;
             return await prisma.product.update({
                 where: { id },
                 data: {

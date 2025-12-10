@@ -1,4 +1,16 @@
 export const transactionResolvers = {
+    Query: {
+        warehouses: async (_, __, { prisma }) => {
+            return await prisma.warehouse.findMany();
+        },
+        transactions: async (_, args, { prisma }) => {
+            const take = args.limit && args.limit > 0 ? args.limit : undefined;
+            return await prisma.transaction.findMany({
+                orderBy: { timestamp: 'desc' },
+                take,
+            });
+        },
+    },
     Mutation: {
         createWarehouse: async (_, args, { prisma }) => {
             return await prisma.warehouse.create({
@@ -86,6 +98,21 @@ export const transactionResolvers = {
                     include: { product: true, sourceWarehouse: true, targetWarehouse: true },
                 });
             });
+        },
+    },
+    StockTransaction: {
+        product: async (parent, _, { prisma }) => {
+            return await prisma.product.findUnique({ where: { id: parent.productId } });
+        },
+        sourceWarehouse: async (parent, _, { prisma }) => {
+            if (!parent.sourceWarehouseId)
+                return null;
+            return await prisma.warehouse.findUnique({ where: { id: parent.sourceWarehouseId } });
+        },
+        targetWarehouse: async (parent, _, { prisma }) => {
+            if (!parent.targetWarehouseId)
+                return null;
+            return await prisma.warehouse.findUnique({ where: { id: parent.targetWarehouseId } });
         },
     },
 };

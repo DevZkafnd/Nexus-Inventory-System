@@ -1,6 +1,22 @@
 import type { PrismaClient } from '@prisma/client'
 
 export const transactionResolvers = {
+  Query: {
+    warehouses: async (_: unknown, __: unknown, { prisma }: { prisma: PrismaClient }) => {
+      return await prisma.warehouse.findMany()
+    },
+    transactions: async (
+      _: unknown,
+      args: { limit?: number },
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      const take = args.limit && args.limit > 0 ? args.limit : undefined
+      return await prisma.transaction.findMany({
+        orderBy: { timestamp: 'desc' },
+        take,
+      })
+    },
+  },
   Mutation: {
     createWarehouse: async (
       _: unknown,
@@ -124,4 +140,29 @@ export const transactionResolvers = {
         })
       },
     },
-  }
+  StockTransaction: {
+    product: async (
+      parent: { productId: string },
+      _: unknown,
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      return await prisma.product.findUnique({ where: { id: parent.productId } })
+    },
+    sourceWarehouse: async (
+      parent: { sourceWarehouseId?: string | null },
+      _: unknown,
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      if (!parent.sourceWarehouseId) return null
+      return await prisma.warehouse.findUnique({ where: { id: parent.sourceWarehouseId } })
+    },
+    targetWarehouse: async (
+      parent: { targetWarehouseId?: string | null },
+      _: unknown,
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      if (!parent.targetWarehouseId) return null
+      return await prisma.warehouse.findUnique({ where: { id: parent.targetWarehouseId } })
+    },
+  },
+}
