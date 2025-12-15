@@ -1,3 +1,32 @@
+# Nexus Inventory System — Overview & Quick Start
+
+## Ringkas
+- Arsitektur: Backend GraphQL (Node.js + Prisma + PostgreSQL) dengan dua klien terpisah.
+- Klien:
+  - Admin Web: `client/web/index.html` dan `client/web/app.js`
+  - Mobile (Flutter Placeholder): `client/mobile/index.html`
+- Autentikasi:
+  - Login mengembalikan token `user.id`, dikirim via header `x-user-id`.
+  - Admin seed: email `admin@contoh.com`, password `admin1234` (dapat diubah via env `ADMIN_PASSWORD`).
+  - Token disimpan di `sessionStorage` per tab dan dihapus saat `unload`.
+- QR:
+  - Cetak langsung di halaman sebagai JPG; tombol download JPG dengan nama file mengikuti produk/gudang.
+
+## Menjalankan
+- Dengan Docker:
+  - `docker compose up -d`
+  - API GraphQL tersedia di `http://localhost:4000/`
+  - Base image backend: `node:22-bookworm-slim` untuk stabilitas Prisma Node-API.
+- Tanpa Docker (opsional):
+  - Pastikan PostgreSQL berjalan dan `DATABASE_URL` terpasang.
+  - Jalankan `npm install`, `npx prisma generate`, `npx prisma db push`, lalu `npm start` di folder `backend`.
+
+## Struktur
+- Backend: `backend/` (Apollo Server, Prisma, resolvers)
+- Klien Admin: `client/web/`
+- Klien Mobile (placeholder Flutter): `client/mobile/`
+- Status & dokumen: `status aplikasi.md`
+
 # Contoh Mutation Query Apollo GraphQL
 
 Dokumen ini menyediakan contoh mutation query untuk setiap model dalam sistem inventaris, termasuk operasi `create`, `update`, dan `delete`. Setiap contoh `create` dilengkapi dengan 5 baris data untuk demonstrasi.
@@ -681,4 +710,3 @@ mutation {
   }
 }
 ```
-
