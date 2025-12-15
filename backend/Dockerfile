@@ -1,5 +1,5 @@
-# Menggunakan node alpine agar ringan
-FROM node:22-alpine
+# Menggunakan Debian-based image agar kompatibel dengan Prisma Node-API (library engine)
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 

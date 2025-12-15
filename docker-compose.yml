@@ -7,10 +7,14 @@ services:
     ports:
       - "4000:4000"
     depends_on:
-      - nexus-db
+      nexus-db:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://app@nexus-db:5432/inventory
-      - SHADOW_DATABASE_URL=postgresql://app@nexus-db:5432/inventory_shadow
+      - DATABASE_URL=postgresql://postgres@nexus-db:5432/inventory
+      - SHADOW_DATABASE_URL=postgresql://postgres@nexus-db:5432/inventory_shadow
+      - ADMIN_PASSWORD=admin1234
+      - PRISMA_CLIENT_ENGINE_TYPE=library
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm start"
 
   # Service B: Nexus-DB (Database)
   nexus-db:
@@ -23,6 +27,12 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
 
 volumes:
   pg_data:

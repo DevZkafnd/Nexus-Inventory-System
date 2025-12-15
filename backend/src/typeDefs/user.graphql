@@ -1,0 +1,12 @@
+enum Role {
+  ADMIN
+  STAFF
+}
+
+type User {
+  id: ID!
+  email: String!
+  name: String
+  role: Role!
+  warehouses: [Warehouse]
+}

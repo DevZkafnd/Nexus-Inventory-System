@@ -17,27 +17,53 @@ export const transactionResolvers = {
       })
     },
   },
+  Warehouse: {
+    staffs: async (
+      parent: { id: string },
+      _: unknown,
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      const links = await prisma.userWarehouse.findMany({ where: { warehouseId: parent.id } })
+      if (links.length === 0) return []
+      const userIds = links.map((l) => l.userId)
+      return await prisma.user.findMany({
+        where: { id: { in: userIds }, role: 'STAFF' },
+        orderBy: [{ name: 'asc' }, { email: 'asc' }],
+      })
+    },
+  },
   Mutation: {
     createWarehouse: async (
       _: unknown,
-      args: { name: string; location: string; capacity?: number },
+      args: { name: string; location: string; code: string; capacity?: number },
       { prisma }: { prisma: PrismaClient }
     ) => {
       return await prisma.warehouse.create({
-        data: { name: args.name, location: args.location, capacity: args.capacity ?? null },
+        data: { name: args.name, location: args.location, code: args.code, capacity: args.capacity ?? null },
       })
     },
-
-    createProduct: async (
+    updateWarehouse: async (
       _: unknown,
-      args: { sku: string; name: string; category?: string; price?: number },
+      args: { id: string; name?: string; location?: string; code?: string; capacity?: number },
       { prisma }: { prisma: PrismaClient }
     ) => {
-      const priceCents = args.price != null ? Math.round(args.price * 100) : null
-      return await prisma.product.create({
-        data: { sku: args.sku, name: args.name, category: args.category ?? null, priceCents },
+      return await prisma.warehouse.update({
+        where: { id: args.id },
+        data: { name: args.name, location: args.location, code: args.code, capacity: args.capacity ?? undefined },
       })
     },
+    deleteWarehouse: async (
+      _: unknown,
+      args: { id: string },
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      const stocks = await prisma.stockItem.aggregate({ _sum: { quantity: true }, where: { warehouseId: args.id } })
+      if ((stocks._sum.quantity || 0) > 0) throw new Error('Masih ada stok di gudang ini, tidak bisa dihapus.')
+      await prisma.warehouse.delete({ where: { id: args.id } })
+      return true
+    },
+
+ 
 
     inboundStock: async (
       _: unknown,

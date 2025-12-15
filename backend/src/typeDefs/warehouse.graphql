@@ -2,8 +2,10 @@ type Warehouse {
   id: ID!
   name: String!
   location: String!
+  code: String!
   capacity: Int
   stocks: [StockItem]
+  staffs: [User]
 }
 
 # Relasi Many-to-Many antara Product & Warehouse

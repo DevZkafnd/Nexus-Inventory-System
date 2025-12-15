@@ -4,6 +4,7 @@ enum MutationType {
   INBOUND
   OUTBOUND
   TRANSFER
+  INITIAL_ADJUSTMENT
 }
 
 type StockTransaction {
