@@ -5,6 +5,9 @@ export const productResolvers = {
     products: async (_: unknown, __: unknown, { prisma }: { prisma: PrismaClient }) => {
       return await prisma.product.findMany({ where: { isDeleted: false } })
     },
+    productBySku: async (_: unknown, { sku }: { sku: string }, { prisma }: { prisma: PrismaClient }) => {
+      return await prisma.product.findUnique({ where: { sku } })
+    },
     product: async (
       _: unknown,
       { id }: { id: string },
@@ -44,6 +47,16 @@ export const productResolvers = {
         where: { productId: parent.id },
       })
       return (aggregate._sum.quantity || 0) < 10
+    },
+    stocks: async (
+      parent: { id: string },
+      _: unknown,
+      { prisma }: { prisma: PrismaClient }
+    ) => {
+      return await prisma.stockItem.findMany({
+        where: { productId: parent.id },
+        include: { warehouse: true, product: true },
+      })
     },
   },
 

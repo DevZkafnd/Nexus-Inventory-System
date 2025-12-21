@@ -64,6 +64,8 @@ const resolvers = {
     },
     Product: productResolvers.Product,
     User: userResolvers.User,
+    Warehouse: transactionResolvers.Warehouse,
+    StockTransaction: transactionResolvers.StockTransaction,
     Date: new GraphQLScalarType({
         name: 'Date',
         serialize: (value) => new Date(value).toISOString(),
@@ -72,8 +74,17 @@ const resolvers = {
     }),
 };
 async function ensurePlaygroundSeed() {
+    const wMain = await prisma.warehouse.findFirst({ where: { code: 'WH-GUDANG-UTAMA' } }) || await prisma.warehouse.findFirst({ where: { code: 'WH-MAIN' } });
     const wA = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground A' } });
     const wB = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground B' } });
+    const warehouseMain = wMain ??
+        (await prisma.warehouse.create({
+            data: { name: 'Gudang Utama', location: 'Jakarta', capacity: 1000, code: 'WH-GUDANG-UTAMA' },
+        }));
+    // Ensure code is WH-GUDANG-UTAMA if it was WH-MAIN
+    if (warehouseMain.code === 'WH-MAIN') {
+        await prisma.warehouse.update({ where: { id: warehouseMain.id }, data: { code: 'WH-GUDANG-UTAMA', name: 'Gudang Utama', location: 'Jakarta' } });
+    }
     const warehouseA = wA ??
         (await prisma.warehouse.create({
             data: { name: 'Gudang Playground A', location: 'Jakarta', capacity: 100, code: 'WH-PLAY-A' },
@@ -82,6 +93,9 @@ async function ensurePlaygroundSeed() {
         (await prisma.warehouse.create({
             data: { name: 'Gudang Playground B', location: 'Bandung', capacity: 80, code: 'WH-PLAY-B' },
         }));
+    if (!warehouseMain.code) {
+        await prisma.warehouse.update({ where: { id: warehouseMain.id }, data: { code: 'WH-GUDANG-UTAMA' } });
+    }
     if (!warehouseA.code) {
         await prisma.warehouse.update({ where: { id: warehouseA.id }, data: { code: 'WH-PLAY-A' } });
     }
@@ -168,6 +182,7 @@ const server = new ApolloServer({
     typeDefs,
     resolvers,
     introspection: true,
+    csrfPrevention: false, // Nonaktifkan CSRF untuk development
     plugins: [
         ApolloServerPluginLandingPageLocalDefault({
             embed: true,

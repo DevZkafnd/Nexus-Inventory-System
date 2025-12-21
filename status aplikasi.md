@@ -1,88 +1,78 @@
-# Status Aplikasi: Nexus Inventory System (Update per 15 Des 2025)
+# Status Aplikasi: Nexus Inventory System (Update per 22 Des 2025)
 
 ## 1. Ikhtisar
-- Arsitektur Multi‑Client: Web Admin dan Mobile Staff berjalan di atas satu backend GraphQL.
-- Infrastruktur container stabil, siap untuk integrasi aplikasi Mobile berbasis Dart/Flutter.
-- Fitur inti: CRUD Produk (aman), Transaksi Stok, User Role (ADMIN/STAFF), Auth sederhana, QR Code operasional.
+- **Arsitektur Multi‑Client**: Web Admin (Manajemen Pusat) dan Mobile Staff (Operasional Cabang) berjalan di atas satu backend GraphQL.
+- **Backend**: Node.js + Prisma + PostgreSQL (Dockerized).
+- **Web Admin**: React.js dengan UI High-Tech Inventory (WebGL Animations).
+- **Mobile App**: Flutter (Android), fitur lengkap scan QR & manajemen stok.
 
 ## 2. Infrastruktur & Deploy
-- Docker Compose: `nexus-api` (backend) dan `nexus-db` (PostgreSQL) satu jaringan.
-- Port: API GraphQL diekspos `4000:4000`.
-- Image backend: `node:22-bookworm-slim` untuk stabilitas Prisma Node‑API (menghindari segfault di alpine).
-- Env penting:
-  - `DATABASE_URL`, `SHADOW_DATABASE_URL`
-  - `PRISMA_CLIENT_ENGINE_TYPE=library`
-  - `ADMIN_PASSWORD=admin1234`
-- Startup backend:
-  - Jalankan `prisma generate` dan `prisma db push`, kemudian `npm start`.
-  - Healthcheck DB di compose memastikan urutan start yang aman.
+- **Docker Compose**: Menjalankan API, Database, dan Ngrok Tunnel secara otomatis.
+- **Akses Publik**: Menggunakan Ngrok agar aplikasi mobile di jaringan 4G/5G bisa mengakses backend di localhost laptop.
+- **Environment**:
+  - Backend: `node:22-bookworm-slim`
+  - Database: PostgreSQL (Alpine)
+  - Tunnel: Ngrok (via Docker)
 
-## 3. Data Model (Prisma)
-- Enum `Role`: `ADMIN`, `STAFF`.
-- Model `User`: `id`, `email`, `name`, `role`, `passwordSalt`, `passwordHash`, relasi ke `UserWarehouse`.
-- Model `UserWarehouse`: Many‑to‑Many (User—Warehouse) dengan unique pair `userId, warehouseId`.
-- Model Produk, Gudang, Stok, Transaksi sudah aktif; `totalStock` dihitung dari `StockItem`.
+## 3. Fitur Utama & Logika Bisnis (Terbaru)
+### A. Web Admin (Pusat) - **LOGIN REVAMP** ✨
+- **Tema "Secure Inventory"**: Desain halaman login baru yang mencerminkan sistem keamanan gudang berteknologi tinggi.
+- **Animasi Liquid Ether**: Latar belakang simulasi cairan interaktif (WebGL) dengan warna tema gelap (Hitam/Navy/Biru Muda) yang merespons gerakan mouse.
+- **Variable Proximity Text**: Judul aplikasi memiliki efek interaktif; huruf membesar dan berubah menjadi putih terang saat kursor mendekat, menggunakan font `Roboto Flex`.
+- **Barcode UI**:
+  - Container form login menyerupai label barcode fisik.
+  - Input field memiliki animasi "Laser Scan" saat diketik/difokuskan.
+  - Tombol login dengan efek pengisian progress bar futuristik.
+- **Lokalisasi**: Seluruh antarmuka login kini menggunakan Bahasa Indonesia baku ("ID AKSES", "KODE KEAMANAN", "MEMVERIFIKASI").
 
-## 4. GraphQL API
-- Query:
-  - `products`, `product(id)`, `warehouses`, `transactions(limit)`
-  - `me`, `users`, `user(id)`
-- Mutation:
-  - Produk: `createProduct`, `updateProduct`, `deleteProduct`
-  - Stok: `inboundStock`, `outboundStock`, `transferStock`
-  - User: `createUser(email,name,role,password)`, `login(email,password)`
-  - Assignment Staff: `assignStaffToWarehouse(userId,warehouseId)`, `unassignStaffFromWarehouse(...)`
-- Field Resolver:
-  - `Product.totalStock`: agregasi dari `StockItem`
-  - `Warehouse.staffs`: daftar user `STAFF` yang di‑assign ke gudang
+### B. Mobile App (Staff Cabang)
+- **Aktivasi Wajib**: Staff baru harus scan QR Gudang untuk mulai bekerja.
+- **Logika Stok (Perspektif User):**
+  - **Outbound (Barang Masuk)**: Terima barang dari Gudang Utama/Supplier (Stok Cabang +, Stok Utama -).
+  - **Inbound (Barang Keluar)**: Penjualan ke Customer (Stok Cabang -).
+  - **Mutasi (Transfer)**: Pindahkan barang ke Gudang Lain.
+- **Scanner Canggih**: Scan QR Real-time, Upload Gambar, Flash support.
 
-## 5. Autentikasi & Otorisasi
-- Login sederhana:
-  - Password di‑hash PBKDF2 (`sha256`, 120k iterasi) dengan salt unik per user.
-  - `login` mengembalikan token `user.id` yang dikirim via header `x-user-id`.
-- Admin seed:
-  - Dibuat/diupdate otomatis: email `admin@contoh.com`, nama `Zaki Affandi`, role `ADMIN`, password `admin1234`.
-- Sesi di client:
-  - Token disimpan di `sessionStorage` per tab; dihapus saat `unload` untuk memaksa login ulang jika tab ditutup/direload.
+## 4. Perbaikan Terkini (Bug Fixes & Optimizations)
+### Web Admin
+1.  **Variable Proximity Lag Fix**:
+    - Mengoptimalkan kalkulasi jarak dengan *squared distance* (menghindari `Math.sqrt` di loop).
+    - Menambahkan properti `will-change` CSS untuk memberi petunjuk pada browser.
+    - Menggunakan *ref caching* untuk posisi huruf guna meminimalkan *reflow/repaint*.
+2.  **Liquid Ether Stability**:
+    - Memisahkan state animasi dari re-render form React (mencegah animasi reset saat mengetik email/password).
+    - Penyesuaian shader untuk visibilitas optimal di latar gelap.
+3.  **Font Consistency**:
+    - Unifikasi penggunaan font `Roboto Flex` di seluruh komponen animasi (`SplitText` & `VariableProximity`) untuk transisi yang mulus.
 
-## 6. Client Aplikasi
-- Struktur direktori:
-  - `client/web/` (Admin)
-  - `client/mobile/` (Staff)
-- Web Admin:
-  - Login overlay wajib sebelum akses.
-  - Tabel Produk: SKU, Nama, `totalStock`, aksi Edit/Delete/QR.
-  - Form Create Produk (opsional set initial stock + gudang).
-  - Tabel Gudang: menampilkan daftar Staff yang di‑assign.
-  - QR Code:
-    - Cetak langsung di halaman (JPG), hanya QR yang tercetak.
-    - Tombol download JPG dengan nama file mengikuti produk/gudang.
-- Mobile Staff (HTML POC, menuju Flutter):
-  - Login Staff.
-  - Assign ke gudang via input/scan code/ID gudang.
-  - Pilih gudang ter‑assign.
-  - Inbound/Outbound dengan SKU + Qty; stok otomatis bertambah/berkurang.
-  - Catatan: Implementasi scanner akan diarahkan ke Flutter (rencana integrasi).
+### Mobile App
+1.  **Fix Camera White Screen**: Penanganan error kamera dan restart controller otomatis.
+2.  **Auto-Detect Gudang Utama**: Backend otomatis mengenali gudang pusat untuk sumber stok.
 
-## 7. Aturan Bisnis Produk & Stok
-- `totalStock` tidak dapat diedit manual; hanya berubah melalui transaksi:
-  - `inboundStock`, `outboundStock`, `transferStock`.
-- `createProduct` dapat menginisialisasi stok awal di gudang terpilih (mencatat transaksi `INITIAL_ADJUSTMENT`).
-- `deleteProduct` menolak jika stok global masih tersedia.
+## 5. Cara Menjalankan (Quick Start)
+### Backend
+```bash
+docker compose up -d
+```
+- API: `http://localhost:4000`
+- Ngrok Public URL: Cek di `http://localhost:4040`
 
-## 8. Status & Rencana
-- Status:
-  - Backend stabil, segfault tertangani dengan base image Debian.
-  - Web Admin siap operasional.
-  - Mobile Staff POC siap, migrasi ke Dart/Flutter direncanakan.
-- Rencana berikut:
-  - Implementasi Flutter untuk mobile (scanner kamera, offline queue).
-  - Pengetatan otorisasi: batasi operasi stok STAFF hanya di gudang ter‑assign.
-  - JWT & cookie httpOnly untuk auth lebih kuat pada produksi.
+### Web Admin
+```bash
+cd client/web
+npm run dev
+```
+- URL: `http://localhost:5173`
 
-## 9. Akses & Verifikasi
-- API: `http://localhost:4000/`
-- Uji cepat:
-  - Login Admin (`admin@contoh.com` / `admin1234`) di `client/web/index.html`.
-  - Buat produk, cetak QR SKU, lihat daftar staff per gudang.
-  - Login Staff di `client/mobile/index.html`, assign gudang, inbound/outbound via SKU.
+### Mobile (Flutter)
+1.  Pastikan URL Ngrok di `lib/config/graphql.dart` sudah sesuai.
+2.  Build & Run:
+    ```bash
+    cd client/mobile/mobile
+    flutter run --release
+    ```
+
+## 6. Rencana Pengembangan Selanjutnya
+- [ ] **Web Admin**: Implementasi dashboard utama dengan tema desain yang selaras (High-Tech/Grid UI).
+- [ ] **Mobile**: Notifikasi Push untuk stok menipis.
+- [ ] **Umum**: Mode Offline (Queue transaksi saat tidak ada internet).

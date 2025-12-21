@@ -27,3 +27,8 @@ prisma/dev.db
 # Logs
 logs
 **/*.log
+
+# Emulator & Large Files
+*.img
+*.qcow2
+*.iso

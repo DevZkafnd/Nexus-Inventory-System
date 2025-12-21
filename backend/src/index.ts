@@ -71,6 +71,8 @@ const resolvers = {
   },
   Product: ((productResolvers as unknown) as any).Product,
   User: ((userResolvers as unknown) as any).User,
+  Warehouse: ((transactionResolvers as unknown) as any).Warehouse,
+  StockTransaction: ((transactionResolvers as unknown) as any).StockTransaction,
   Date: new GraphQLScalarType({
     name: 'Date',
     serialize: (value: unknown) => new Date(value as any).toISOString(),
@@ -80,8 +82,21 @@ const resolvers = {
 };
 
 async function ensurePlaygroundSeed() {
+  const wMain = await prisma.warehouse.findFirst({ where: { code: 'WH-GUDANG-UTAMA' } }) || await prisma.warehouse.findFirst({ where: { code: 'WH-MAIN' } })
   const wA = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground A' } })
   const wB = await prisma.warehouse.findFirst({ where: { name: 'Gudang Playground B' } })
+  
+  const warehouseMain = 
+    wMain ??
+    (await prisma.warehouse.create({
+      data: { name: 'Gudang Utama', location: 'Jakarta', capacity: 1000, code: 'WH-GUDANG-UTAMA' },
+    }))
+
+  // Ensure code is WH-GUDANG-UTAMA if it was WH-MAIN
+  if (warehouseMain.code === 'WH-MAIN') {
+    await prisma.warehouse.update({ where: { id: warehouseMain.id }, data: { code: 'WH-GUDANG-UTAMA', name: 'Gudang Utama', location: 'Jakarta' } })
+  }
+
   const warehouseA =
     wA ??
     (await prisma.warehouse.create({
@@ -92,6 +107,10 @@ async function ensurePlaygroundSeed() {
     (await prisma.warehouse.create({
       data: { name: 'Gudang Playground B', location: 'Bandung', capacity: 80, code: 'WH-PLAY-B' },
     }))
+  
+  if (!warehouseMain.code) {
+    await prisma.warehouse.update({ where: { id: warehouseMain.id }, data: { code: 'WH-GUDANG-UTAMA' } })
+  }
   if (!warehouseA.code) {
     await prisma.warehouse.update({ where: { id: warehouseA.id }, data: { code: 'WH-PLAY-A' } })
   }
@@ -183,6 +202,7 @@ const server = new ApolloServer({
   typeDefs,
   resolvers,
   introspection: true,
+  csrfPrevention: false, // Nonaktifkan CSRF untuk development
   plugins: [
     ApolloServerPluginLandingPageLocalDefault({
       embed: true,

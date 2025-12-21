@@ -20,6 +20,10 @@ export const userResolvers = {
       args: { email: string; name?: string | null; role: 'ADMIN' | 'STAFF'; password: string },
       { prisma }: { prisma: PrismaClient }
     ) => {
+      const existing = await prisma.user.findUnique({ where: { email: args.email } })
+      if (existing) {
+        throw new Error('Email sudah terdaftar')
+      }
       const salt = randomBytes(16).toString('hex')
       const hash = pbkdf2Sync(args.password, salt, 120000, 32, 'sha256').toString('hex')
       return await prisma.user.create({

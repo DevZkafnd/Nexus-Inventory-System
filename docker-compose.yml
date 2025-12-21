@@ -34,5 +34,17 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # Service C: Ngrok (Public Tunnel)
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command: http nexus-api:4000
+    environment:
+      NGROK_AUTHTOKEN: 36x3DxOKGxt66UlL3G5YgZlZoOB_qfKW4m5sT1jeCT5b2Gne
+    ports:
+      - "4040:4040" # Dashboard UI untuk melihat URL Publik
+    depends_on:
+      - nexus-api
+
 volumes:
   pg_data:

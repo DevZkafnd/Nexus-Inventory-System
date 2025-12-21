@@ -4,6 +4,7 @@ export const rootTypeDefs = `#graphql
     warehouses: [Warehouse]
     products: [Product]
     product(id: ID!): Product
+    productBySku(sku: String!): Product
     transactions(limit: Int): [StockTransaction]
     me: User
     users: [User]

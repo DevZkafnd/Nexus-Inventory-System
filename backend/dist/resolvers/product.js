@@ -3,6 +3,9 @@ export const productResolvers = {
         products: async (_, __, { prisma }) => {
             return await prisma.product.findMany({ where: { isDeleted: false } });
         },
+        productBySku: async (_, { sku }, { prisma }) => {
+            return await prisma.product.findUnique({ where: { sku } });
+        },
         product: async (_, { id }, { prisma }) => {
             return await prisma.product.findUnique({ where: { id } });
         },
@@ -26,6 +29,12 @@ export const productResolvers = {
                 where: { productId: parent.id },
             });
             return (aggregate._sum.quantity || 0) < 10;
+        },
+        stocks: async (parent, _, { prisma }) => {
+            return await prisma.stockItem.findMany({
+                where: { productId: parent.id },
+                include: { warehouse: true, product: true },
+            });
         },
     },
     Mutation: {

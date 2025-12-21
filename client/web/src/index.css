@@ -1,0 +1,207 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39+Text&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.bg-grid-pattern {
+  background-size: 50px 50px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+}
+
+@keyframes elegantScan {
+  0% { top: -20px; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: 110%; opacity: 0; }
+}
+
+.scan-beam {
+  position: absolute;
+  left: -5%;
+  width: 110%;
+  height: 1px;
+  background: #93C5FD; /* lighter blue */
+  box-shadow: 
+    0 0 4px #60A5FA, 
+    0 0 10px rgba(96, 165, 250, 0.5);
+  animation: elegantScan 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.scan-beam::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(to bottom, rgba(96, 165, 250, 0.1), transparent);
+}
+
+/* Tech Frame Corners */
+.tech-corners {
+  position: absolute;
+  inset: -24px;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* Top Left & Bottom Right */
+.tech-corners::before, .tech-corners::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(96, 165, 250, 0.5);
+  border-style: solid;
+  border-width: 0;
+  transition: all 0.3s ease;
+}
+
+.tech-corners::before {
+  top: 0;
+  left: 0;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.tech-corners::after {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+.tech-corners-inner {
+  position: absolute;
+  inset: 0;
+}
+
+.tech-corners-inner::before, .tech-corners-inner::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(96, 165, 250, 0.5);
+  border-style: solid;
+  border-width: 0;
+}
+
+.tech-corners-inner::before {
+  top: 0;
+  right: 0;
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.tech-corners-inner::after {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+/* New Barcode UI Theme */
+
+.bg-barcode-white {
+  background-color: #ffffff;
+  background-image: 
+    linear-gradient(90deg, 
+      rgba(0,0,0,0.03) 1px, transparent 1px,
+      transparent 3px, rgba(0,0,0,0.03) 3px,
+      rgba(0,0,0,0.03) 4px, transparent 4px,
+      transparent 8px, rgba(0,0,0,0.02) 8px
+    );
+  background-size: 10px 100%;
+  box-shadow: 
+    0 20px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.barcode-font {
+  font-family: 'Libre Barcode 39 Text', cursive;
+}
+
+/* Scanner Input Animation */
+.input-group {
+  position: relative;
+  overflow: hidden;
+}
+
+.input-scanner-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #E5E7EB; /* gray-200 */
+  transition: all 0.3s ease;
+}
+
+.input-scanner-active {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0%;
+  height: 2px;
+  background: #2563EB; /* blue-600 */
+  box-shadow: 0 -2px 10px rgba(37, 99, 235, 0.5);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.input-field:focus ~ .input-scanner-active {
+  width: 100%;
+}
+
+.input-scan-beam {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 20%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.2), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s;
+  pointer-events: none;
+}
+
+.input-field:focus ~ .input-scan-beam {
+  animation: scanInput 2s linear infinite;
+}
+
+@keyframes scanInput {
+  0% { left: -100%; }
+  50% { left: 200%; }
+  100% { left: 200%; }
+}
+
+.barcode-strip {
+  height: 4px;
+  width: 100%;
+  background-image: linear-gradient(90deg, 
+    #000 0%, #000 5%, 
+    transparent 5%, transparent 10%, 
+    #000 10%, #000 15%, 
+    transparent 15%, transparent 17%, 
+    #000 17%, #000 25%, 
+    transparent 25%, transparent 30%, 
+    #000 30%, #000 32%,
+    transparent 32%, transparent 40%,
+    #000 40%, #000 45%,
+    transparent 45%, transparent 50%,
+    #000 50%, #000 60%,
+    transparent 60%, transparent 70%,
+    #000 70%, #000 75%,
+    transparent 75%, transparent 100%
+  );
+  background-size: 100px 100%;
+  opacity: 0.2;
+}

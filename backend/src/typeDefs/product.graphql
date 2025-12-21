@@ -7,4 +7,5 @@ type Product {
   dimensions: String
   totalStock: Int      # Field terkomputasi (Global Stock)
   isLowStock: Boolean
+  stocks: [StockItem]
 }

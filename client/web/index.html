@@ -1,128 +1,13 @@
 <!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nexus Admin Dashboard</title>
-<style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px}
-h1{font-size:20px;margin:0 0 16px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-table{width:100%;border-collapse:collapse}
-th,td{border:1px solid #ddd;padding:8px;text-align:left}
-th{background:#f7f7f7}
-.controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-input,button{padding:8px;font-size:14px}
-.low{color:#c62828;font-weight:600}
-</style>
-</head>
-<body>
-<div id="loginOverlay" style="position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="border:1px solid #ddd;padding:20px;border-radius:8px;min-width:280px">
-    <h2 style="font-size:16px;margin:0 0 12px">Login Admin</h2>
-    <form id="loginForm">
-      <div class="controls" style="flex-direction:column;align-items:stretch">
-        <input id="loginEmail" placeholder="Email" type="email" required>
-        <input id="loginPassword" placeholder="Password" type="password" required>
-      </div>
-      <button type="submit" style="width:100%;margin-top:8px">Login</button>
-      <div id="loginStatus" style="margin-top:6px;color:#555"></div>
-    </form>
-  </div>
-</div>
-<h1>Dashboard Admin</h1>
-<div class="grid">
-  <section>
-    <h2 style="font-size:16px;margin:0 0 12px">Manajemen Gudang</h2>
-    <div class="controls">
-      <button id="refreshWarehouses">Refresh Gudang</button>
-      <span id="whListStatus"></span>
-    </div>
-    <form id="createWarehouseForm">
-      <div class="controls">
-        <input id="whName" placeholder="Nama Gudang" required>
-        <input id="whLocation" placeholder="Lokasi" required>
-        <input id="whCode" placeholder="Kode (unik)" required>
-      </div>
-      <button type="submit">Tambah Gudang</button>
-      <span id="whStatus"></span>
-    </form>
-    <table style="margin-top:12px">
-      <thead>
-        <tr>
-          <th>Nama</th>
-          <th>Lokasi</th>
-          <th>Kode</th>
-          <th>Staff</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="warehousesBody"></tbody>
-    </table>
-  </section>
-    <div class="controls">
-      <button id="refresh">Refresh Produk</button>
-      <span id="lastSync"></span>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Nama</th>
-          <th>Total Stok</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="productsBody"></tbody>
-    </table>
-  </section>
-  <section>
-    <form id="createForm">
-      <div class="controls">
-        <input id="sku" placeholder="SKU" required>
-        <input id="name" placeholder="Nama Produk" required>
-      </div>
-      <div class="controls">
-        <input id="category" placeholder="Kategori">
-        <input id="price" placeholder="Harga (Rp) contoh: 12.5" type="number" step="0.01">
-      </div>
-      <div class="controls">
-        <input id="initialStock" placeholder="Stok Awal" type="number" min="0">
-        <select id="warehouseSelect"><option value="">Pilih Gudang (opsional)</option></select>
-      </div>
-      <button type="submit">Create Product</button>
-      <span id="createStatus"></span>
-    </form>
-    <h2 style="font-size:16px;margin-top:20px">Log Transaksi</h2>
-    <div class="controls">
-      <button id="loadTx">Refresh Transaksi</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Jenis</th>
-          <th>Qty</th>
-          <th>Waktu</th>
-          <th>Sumber</th>
-          <th>Tujuan</th>
-        </tr>
-      </thead>
-      <tbody id="txBody"></tbody>
-    </table>
-  </section>
-</div>
-<div id="qrModal" style="display:none;position:fixed;inset:0;background:#0006;align-items:center;justify-content:center">
-  <div style="background:#fff;padding:20px;max-width:400px;width:100%;text-align:center">
-    <h3 id="qrTitle" style="margin:0 0 12px;font-size:16px"></h3>
-    <div id="qrCanvas"></div>
-    <div class="controls" style="justify-content:center;margin-top:12px">
-      <button id="printQR">Cetak Label</button>
-      <button id="downloadQR">Download Label</button>
-      <button id="closeQR">Tutup</button>
-    </div>
-  </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-<script src="./app.js"></script>
-</body>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>web</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
