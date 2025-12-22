@@ -32,7 +32,7 @@ function Login() {
     loginMutation({ variables: { email, password } });
   };
 
-  const liquidColors = useMemo(() => ['#000000', '#172554', '#60A5FA'], []);
+  const liquidColors = useMemo(() => ['#6b7280', '#cbd5e1', '#ffffff'], []);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 relative overflow-hidden cursor-crosshair">
