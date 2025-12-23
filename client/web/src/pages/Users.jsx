@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { User, Shield, Warehouse } from 'lucide-react';
+import { User, Shield, Warehouse, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const USERS_QUERY = gql`
   query GetUsers {
@@ -18,12 +18,23 @@ const USERS_QUERY = gql`
 `;
 
 const UsersPage = () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const { loading, error, data } = useQuery(USERS_QUERY, {
     pollInterval: 1000,
   });
 
   if (loading) return <div>Memuat...</div>;
   if (error) return <div className="text-red-500">Error: {error.message}</div>;
+
+  const users = data.users || [];
+  const totalPages = Math.ceil(users.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = users.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -39,7 +50,7 @@ const UsersPage = () => {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {data.users.map((user) => (
+          {currentItems.map((user) => (
             <tr key={user.id}>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
@@ -80,6 +91,69 @@ const UsersPage = () => {
           ))}
         </tbody>
       </table>
+      
+      {/* Pagination Controls */}
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === 1 ? 'text-gray-300 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'}`}
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === totalPages ? 'text-gray-300 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'}`}
+          >
+            Next
+          </button>
+        </div>
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Menampilkan <span className="font-medium">{users.length > 0 ? indexOfFirstItem + 1 : 0}</span> sampai <span className="font-medium">{Math.min(indexOfLastItem, users.length)}</span> dari <span className="font-medium">{users.length}</span> hasil
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft size={20} />
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => paginate(i + 1)}
+                  aria-current={currentPage === i + 1 ? 'page' : undefined}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    currentPage === i + 1
+                      ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight size={20} />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
