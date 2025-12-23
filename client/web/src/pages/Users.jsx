@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { User, Shield, Warehouse, ChevronLeft, ChevronRight } from 'lucide-react';
+import { User, Shield, Warehouse, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 const USERS_QUERY = gql`
   query GetUsers {
@@ -19,6 +19,7 @@ const USERS_QUERY = gql`
 
 const UsersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 5;
 
   const { loading, error, data } = useQuery(USERS_QUERY, {
@@ -29,17 +30,40 @@ const UsersPage = () => {
   if (error) return <div className="text-red-500">Error: {error.message}</div>;
 
   const users = data.users || [];
-  const totalPages = Math.ceil(users.length / itemsPerPage) || 1;
+  
+  const filteredUsers = users.filter(user => 
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = users.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h2 className="text-lg font-medium text-gray-900">Manajemen Pengguna</h2>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={18} className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Cari pengguna..."
+            value={searchTerm}
+            onChange={handleSearch}
+          />
+        </div>
       </div>
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
@@ -113,7 +137,7 @@ const UsersPage = () => {
         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-gray-700">
-              Menampilkan <span className="font-medium">{users.length > 0 ? indexOfFirstItem + 1 : 0}</span> sampai <span className="font-medium">{Math.min(indexOfLastItem, users.length)}</span> dari <span className="font-medium">{users.length}</span> hasil
+              Menampilkan <span className="font-medium">{filteredUsers.length > 0 ? indexOfFirstItem + 1 : 0}</span> sampai <span className="font-medium">{Math.min(indexOfLastItem, filteredUsers.length)}</span> dari <span className="font-medium">{filteredUsers.length}</span> hasil
             </p>
           </div>
           <div>
