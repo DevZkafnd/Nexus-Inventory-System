@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
-import { Plus, Edit, Trash2, X, Package, Users, MapPin, QrCode, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Package, Users, MapPin, QrCode, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 const WAREHOUSES_QUERY = gql`
@@ -78,6 +78,10 @@ const Warehouses = () => {
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [formData, setFormData] = useState({ name: '', location: '', code: '', capacity: '' });
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const handleEdit = (e, warehouse) => {
     e?.stopPropagation(); // Prevent opening detail modal if triggered from card
@@ -163,6 +167,14 @@ const Warehouses = () => {
   if (loading) return <div>Memuat...</div>;
   if (error) return <div className="text-red-500">Error: {error.message}</div>;
 
+  const warehouses = data.warehouses || [];
+  const totalPages = Math.ceil(warehouses.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = warehouses.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -177,7 +189,7 @@ const Warehouses = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.warehouses.map((warehouse) => {
+        {currentItems.map((warehouse) => {
           const usage = calculateUsage(warehouse);
           const capacity = warehouse.capacity || 0;
           const percentage = calculatePercentage(usage, capacity);
@@ -228,6 +240,69 @@ const Warehouses = () => {
             </div>
           );
         })}
+      </div>
+      
+      {/* Pagination Controls */}
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === 1 ? 'text-gray-300 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'}`}
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === totalPages ? 'text-gray-300 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'}`}
+          >
+            Next
+          </button>
+        </div>
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Menampilkan <span className="font-medium">{warehouses.length > 0 ? indexOfFirstItem + 1 : 0}</span> sampai <span className="font-medium">{Math.min(indexOfLastItem, warehouses.length)}</span> dari <span className="font-medium">{warehouses.length}</span> hasil
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft size={20} />
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => paginate(i + 1)}
+                  aria-current={currentPage === i + 1 ? 'page' : undefined}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    currentPage === i + 1
+                      ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight size={20} />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
 
       {/* Edit/Create Modal */}
