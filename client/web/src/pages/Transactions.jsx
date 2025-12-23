@@ -27,6 +27,7 @@ const TRANSACTIONS_QUERY = gql`
 const Transactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   const itemsPerPage = 10;
 
   const { loading, error, data } = useQuery(TRANSACTIONS_QUERY, {
@@ -38,11 +39,16 @@ const Transactions = () => {
 
   const transactions = data.transactions || [];
 
-  const filteredTransactions = transactions.filter(tx => 
-    tx.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.referenceNote?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.type?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTransactions = transactions.filter(tx => {
+    const matchesSearch = 
+      tx.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.referenceNote?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.type?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesDate = filterDate === '' || new Date(tx.timestamp).toISOString().split('T')[0] === filterDate;
+
+    return matchesSearch && matchesDate;
+  });
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -53,6 +59,11 @@ const Transactions = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleDateFilter = (e) => {
+    setFilterDate(e.target.value);
     setCurrentPage(1);
   };
 
@@ -75,19 +86,29 @@ const Transactions = () => {
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
         <h2 className="text-lg font-medium text-gray-900">Riwayat Transaksi</h2>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-gray-400" />
+        <div className="flex space-x-2 w-full sm:w-auto">
+          <div className="relative">
+            <input
+              type="date"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-500"
+              value={filterDate}
+              onChange={handleDateFilter}
+            />
           </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Cari transaksi..."
-            value={searchTerm}
-            onChange={handleSearch}
-          />
+          <div className="relative flex-grow">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search size={18} className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Cari transaksi..."
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
         </div>
       </div>
       <table className="min-w-full divide-y divide-gray-200">
