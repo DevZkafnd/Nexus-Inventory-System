@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { Package, Warehouse, History, TrendingUp } from 'lucide-react';
+import { Package, Warehouse, History, TrendingUp, Users } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -14,7 +14,8 @@ import {
   Pie,
   Cell,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from 'recharts';
 
 const DASHBOARD_QUERY = gql`
@@ -34,7 +35,7 @@ const DASHBOARD_QUERY = gql`
         quantity
         product { id }
       }
-      staffs { id }
+      staffs { id name email }
     }
     transactions(limit: 20) {
       id
@@ -64,6 +65,8 @@ const Dashboard = () => {
     pollInterval: 5000,
   });
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
+  const [selectedWarehouseTypesId, setSelectedWarehouseTypesId] = useState(null);
+  const [selectedWarehouseStaffId, setSelectedWarehouseStaffId] = useState(null);
 
   const chartData = useMemo(() => {
     if (!data) return { categoryData: [], topProducts: [], activityData: [], warehouseStats: [], branches: [] };
@@ -135,7 +138,13 @@ const Dashboard = () => {
     if (!selectedWarehouseId || !branchList.find(w => w.id === selectedWarehouseId)) {
       setSelectedWarehouseId(branchList[0].id);
     }
-  }, [data, selectedWarehouseId]);
+    if (!selectedWarehouseTypesId || !branchList.find(w => w.id === selectedWarehouseTypesId)) {
+      setSelectedWarehouseTypesId(branchList[0].id);
+    }
+    if (!selectedWarehouseStaffId || !branchList.find(w => w.id === selectedWarehouseStaffId)) {
+      setSelectedWarehouseStaffId(branchList[0].id);
+    }
+  }, [data, selectedWarehouseId, selectedWarehouseTypesId, selectedWarehouseStaffId]);
 
   if (loading) return <div className="p-4 flex items-center justify-center min-h-[400px]">Memuat data dasbor...</div>;
   if (error) return <div className="p-4 text-red-500">Error: {error.message}</div>;
@@ -301,32 +310,149 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold mb-6 text-gray-800">Jenis Produk per Gudang</h3>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.warehouseStats} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tick={{fontSize: 11}} interval={0} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="productTypes" name="Jenis Produk" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex items-start justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-800">Jenis Produk per Gudang</h3>
+            <div className="flex items-center">
+              {chartData.branches.length > 0 ? (
+                <select
+                  value={selectedWarehouseTypesId || ''}
+                  onChange={(e) => setSelectedWarehouseTypesId(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+                >
+                  {chartData.branches.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-gray-400">Tidak ada gudang cabang</span>
+              )}
+            </div>
+          </div>
+          <div className="h-[280px] w-full flex items-center justify-center">
+            {selectedWarehouseTypesId ? (
+              (() => {
+                const warehouse = data.warehouses.find(w => w.id === selectedWarehouseTypesId);
+                const mapCat = new Map();
+                const prodCat = new Map((data.products || []).map(p => [p.id, p.category || 'Uncategorized']));
+                (warehouse?.stocks || []).forEach(s => {
+                  const cat = prodCat.get(s.product?.id) || 'Uncategorized';
+                  const qty = s.quantity || 0;
+                  mapCat.set(cat, (mapCat.get(cat) || 0) + qty);
+                });
+                const typeData = Array.from(mapCat.entries()).map(([name, value]) => ({ name, value }));
+                return typeData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={typeData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 12, fill: '#374151' }} 
+                        interval={0}
+                        height={50}
+                        tickMargin={10}
+                        tickFormatter={(value) => value && value.length > 14 ? value.slice(0, 14) + '...' : value}
+                        label={{ value: 'Kategori Produk', position: 'insideBottom', offset: -5, fill: '#6B7280' }}
+                      />
+                      <YAxis label={{ value: 'Qty', angle: -90, position: 'insideLeft', fill: '#6B7280' }} />
+                      <Tooltip formatter={(value) => [value, 'Qty']} />
+                      <Legend content={() => (
+                        <div className="flex flex-wrap gap-3 mt-2">
+                          {typeData.map((entry, index) => (
+                            <div key={`legend-type-${index}`} className="flex items-center">
+                              <span
+                                className="inline-block w-3 h-3 rounded-sm mr-2"
+                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              />
+                              <span className="text-xs text-gray-600">{entry.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )} />
+                      <Bar dataKey="value" name="Qty" fill="#10B981" radius={[4, 4, 0, 0]}>
+                        {typeData.map((entry, index) => (
+                          <Cell key={`cell-type-bar-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                        <LabelList dataKey="value" position="top" />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-gray-400">Belum ada stok dalam gudang ini</div>
+                );
+              })()
+            ) : (
+              <div className="text-gray-400">Pilih gudang cabang untuk melihat tipe produk</div>
+            )}
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold mb-6 text-gray-800">Jumlah Staf per Gudang</h3>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.warehouseStats} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tick={{fontSize: 11}} interval={0} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="staffCount" name="Staf" fill="#F59E0B" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex items-start justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-800">Staf per Gudang</h3>
+            <div className="flex items-center">
+              {chartData.branches.length > 0 ? (
+                <select
+                  value={selectedWarehouseStaffId || ''}
+                  onChange={(e) => setSelectedWarehouseStaffId(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+                >
+                  {chartData.branches.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-gray-400">Tidak ada gudang cabang</span>
+              )}
+            </div>
+          </div>
+          <div className="space-y-4">
+            {selectedWarehouseStaffId ? (
+              (() => {
+                const warehouse = data.warehouses.find(w => w.id === selectedWarehouseStaffId);
+                const staffList = warehouse?.staffs || [];
+                const totalStaff = staffList.length;
+                return (
+                  <>
+                    <div className="flex items-center justify-between bg-gray-50 rounded-md p-4">
+                      <div className="flex items-center">
+                        <div className="p-3 rounded-full bg-yellow-500 mr-3">
+                          {React.createElement(Users, { size: 20, className: 'text-white' })}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Total Staf</p>
+                          <p className="text-2xl font-bold text-gray-800">{totalStaff}</p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">Gudang: {warehouse?.name || '-'}</div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {staffList.length > 0 ? staffList.map((s) => (
+                            <tr key={s.id}>
+                              <td className="px-4 py-2 text-sm text-gray-700">{s.name || 'Tanpa Nama'}</td>
+                              <td className="px-4 py-2 text-sm text-gray-500">{s.email || '-'}</td>
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td className="px-4 py-4 text-sm text-gray-400 italic" colSpan={2}>Belum ada staf ditugaskan</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()
+            ) : (
+              <div className="text-gray-400">Pilih gudang cabang untuk melihat staf</div>
+            )}
           </div>
         </div>
       </div>
