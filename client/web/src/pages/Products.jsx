@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import { Plus, Edit, Trash2, X, Search, Package } from 'lucide-react';
 
+const DEFAULT_CATEGORIES = ['makanan', 'minuman', 'skincare', 'household', 'elektronik'];
+
 const PRODUCTS_QUERY = gql`
   query GetProducts {
     products {
@@ -79,6 +81,7 @@ const Products = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
@@ -89,6 +92,43 @@ const Products = () => {
     initialStock: '',
     warehouseId: '',
   });
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editCategoryOld, setEditCategoryOld] = useState('');
+  const [editCategoryNew, setEditCategoryNew] = useState('');
+  const [deleteCategoryName, setDeleteCategoryName] = useState('');
+  const [deleteReassignTo, setDeleteReassignTo] = useState('uncategorized');
+
+  const normalize = (v) => String(v || '').toLowerCase().trim();
+  const displayName = (v) => {
+    const s = String(v || '').toLowerCase().trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  };
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('product_categories');
+    let base = DEFAULT_CATEGORIES.slice();
+    if (stored) {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(stored);
+      } catch {
+        parsed = null;
+      }
+      if (Array.isArray(parsed)) {
+        base = Array.from(new Set(parsed.map(normalize)));
+      }
+    }
+    const derived = Array.from(new Set((data?.products || []).map(p => normalize(p.category)).filter(Boolean)));
+    const merged = Array.from(new Set([...base, ...derived]));
+    setCategories(merged);
+  }, [data]);
+
+  const persistCategories = (next) => {
+    setCategories(next);
+    localStorage.setItem('product_categories', JSON.stringify(next));
+  };
 
   const handleEdit = (product) => {
     setEditingProduct(product);
@@ -200,11 +240,16 @@ const Products = () => {
   if (loading) return <div>Memuat...</div>;
   if (error) return <div className="text-red-500">Error: {error.message}</div>;
 
-  const filteredProducts = data.products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = data.products
+    .filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .filter(product => {
+      if (categoryFilter === 'ALL') return true;
+      return normalize(product.category) === normalize(categoryFilter);
+    });
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -228,19 +273,170 @@ const Products = () => {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b border-gray-200">
-          <div className="relative rounded-md shadow-sm max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="relative rounded-md shadow-sm max-w-md w-full">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={18} className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2"
+                placeholder="Cari produk..."
+                value={searchTerm}
+                onChange={handleSearch}
+              />
             </div>
-            <input
-              type="text"
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2"
-              placeholder="Cari produk..."
-              value={searchTerm}
-              onChange={handleSearch}
-            />
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Kategori:</label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-2 bg-white"
+              >
+                <option value="ALL">Semua</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{displayName(c)}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setIsCategoryPanelOpen(v => !v)}
+                className="ml-2 text-sm px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+              >
+                Kelola Kategori
+              </button>
+            </div>
           </div>
         </div>
+        
+        {isCategoryPanelOpen && (
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-md border">
+                <h4 className="font-semibold text-gray-800 mb-2">Daftar Kategori</h4>
+                <div className="flex flex-wrap gap-2">
+                  {categories.length > 0 ? categories.map(c => (
+                    <span key={c} className="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      {displayName(c)}
+                    </span>
+                  )) : <span className="text-xs text-gray-400">Belum ada kategori</span>}
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-md border">
+                <h4 className="font-semibold text-gray-800 mb-2">Tambah Kategori</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 border rounded-md px-3 py-2"
+                    placeholder="Nama kategori..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                  <button
+                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    onClick={() => {
+                      const n = normalize(newCategoryName);
+                      if (!n) return;
+                      if (categories.includes(n)) return;
+                      persistCategories([...categories, n]);
+                      setNewCategoryName('');
+                    }}
+                  >
+                    Tambah
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-md border">
+                <h4 className="font-semibold text-gray-800 mb-2">Ubah / Hapus Kategori</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="border rounded-md px-2 py-2"
+                      value={editCategoryOld}
+                      onChange={(e) => setEditCategoryOld(e.target.value)}
+                    >
+                      <option value="">Pilih kategori</option>
+                      {categories.map(c => (
+                        <option key={c} value={c}>{displayName(c)}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      className="flex-1 border rounded-md px-3 py-2"
+                      placeholder="Nama baru..."
+                      value={editCategoryNew}
+                      onChange={(e) => setEditCategoryNew(e.target.value)}
+                    />
+                    <button
+                      className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      onClick={async () => {
+                        const oldN = normalize(editCategoryOld);
+                        const newN = normalize(editCategoryNew);
+                        if (!oldN || !newN || oldN === newN) return;
+                        const next = categories.map(c => c === oldN ? newN : c);
+                        persistCategories(Array.from(new Set(next)));
+                        const affected = (data?.products || []).filter(p => normalize(p.category) === oldN);
+                        for (const p of affected) {
+                          try {
+                            await updateProduct({ variables: { id: p.id, category: displayName(newN) } });
+                          } catch (e) {
+                            // swallow for now
+                          }
+                        }
+                        setEditCategoryOld('');
+                        setEditCategoryNew('');
+                      }}
+                    >
+                      Ubah Nama
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="border rounded-md px-2 py-2"
+                      value={deleteCategoryName}
+                      onChange={(e) => setDeleteCategoryName(e.target.value)}
+                    >
+                      <option value="">Pilih kategori</option>
+                      {categories.map(c => (
+                        <option key={c} value={c}>{displayName(c)}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="border rounded-md px-2 py-2"
+                      value={deleteReassignTo}
+                      onChange={(e) => setDeleteReassignTo(e.target.value)}
+                    >
+                      <option value="uncategorized">Uncategorized</option>
+                      {categories.map(c => (
+                        <option key={c} value={c}>{displayName(c)}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                      onClick={async () => {
+                        const del = normalize(deleteCategoryName);
+                        if (!del) return;
+                        const reass = normalize(deleteReassignTo);
+                        const next = categories.filter(c => c !== del);
+                        persistCategories(next);
+                        const affected = (data?.products || []).filter(p => normalize(p.category) === del);
+                        for (const p of affected) {
+                          try {
+                            await updateProduct({ variables: { id: p.id, category: displayName(reass) } });
+                          } catch (e) {
+                            // swallow for now
+                          }
+                        }
+                        setDeleteCategoryName('');
+                      }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -400,13 +596,17 @@ const Products = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Kategori</label>
-                <input
-                  type="text"
+                <select
                   required
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
+                >
+                  <option value="">Pilih Kategori</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{displayName(c)}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Harga</label>
