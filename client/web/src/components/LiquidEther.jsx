@@ -1051,8 +1051,12 @@ export default function LiquidEther({
     ro.observe(container);
     resizeObserverRef.current = ro;
 
+    const rafId = rafRef.current;
+    const resizeRafId = resizeRafRef.current;
+
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
       if (resizeObserverRef.current) {
         try {
           resizeObserverRef.current.disconnect();
@@ -1083,8 +1087,7 @@ export default function LiquidEther({
     mouseForce,
     resolution,
     viscous,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    colors.join(','),
+    colors,
     autoDemo,
     autoSpeed,
     autoIntensity,

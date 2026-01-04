@@ -38,10 +38,10 @@ const DASHBOARD_QUERY = gql`
   }
 `;
 
-const StatCard = ({ title, value, icon: Icon, color }) => (
+const StatCard = ({ title, value, icon, color }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center">
     <div className={`p-4 rounded-full ${color} mr-4`}>
-      <Icon size={24} className="text-white" />
+      {React.createElement(icon, { size: 24, className: 'text-white' })}
     </div>
     <div>
       <p className="text-gray-500 text-sm">{title}</p>
@@ -147,7 +147,7 @@ const Dashboard = () => {
                 <XAxis dataKey="name" tick={{fontSize: 12}} interval={0} />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value, name, props) => [value, 'Stok']}
+                  formatter={(value) => [value, 'Stok']}
                   labelFormatter={(label, payload) => {
                     if (payload && payload.length > 0) return payload[0].payload.fullName;
                     return label;

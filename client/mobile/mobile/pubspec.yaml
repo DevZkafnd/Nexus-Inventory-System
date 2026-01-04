@@ -39,6 +39,8 @@ dependencies:
   shared_preferences:
   image_picker:
   image:
+  flutter_animate: ^4.5.2
+  google_fonts: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'scanner_screen.dart';
 import 'activation_screen.dart';
 import '../services/products_service.dart';
@@ -537,6 +538,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Gudang'),
@@ -588,7 +591,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   // Tampilkan info user meskipun belum punya gudang
                   Card(
-                    color: Colors.orange.shade50,
+                    color: Colors.orange.withValues(alpha: 0.1),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -600,9 +603,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
-                  ),
+                  ).animate().fadeIn().slideY(),
                   const SizedBox(height: 20),
-                  ElevatedButton(onPressed: _openActivationPage, child: const Text('Pergi ke Halaman Aktivasi')),
+                  ElevatedButton(onPressed: _openActivationPage, child: const Text('Pergi ke Halaman Aktivasi'))
+                      .animate().fadeIn(delay: 200.ms),
                   if (_status != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_status!, style: const TextStyle(color: Colors.red))),
                 ],
               ),
@@ -630,7 +634,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                Text(userRole, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                                Text(userRole, style: TextStyle(color: Colors.grey, fontSize: 14)),
                               ],
                             ),
                           ],
@@ -640,7 +644,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.warehouse, size: 20, color: Colors.blue),
+                            Icon(Icons.warehouse, size: 20, color: theme.colorScheme.primary),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -654,7 +658,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                ),
+                ).animate().fadeIn().slideY(),
                 const SizedBox(height: 24),
                 const Text('Menu Operasional', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
@@ -663,145 +667,153 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: const Icon(Icons.download),
                   label: const Text('Inbound (Barang Masuk)'),
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                ),
+                ).animate().fadeIn(delay: 100.ms).slideX(),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () => _openOutboundForm(selected),
                   icon: const Icon(Icons.upload),
                   label: const Text('Outbound (Barang Keluar)'),
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                ),
+                ).animate().fadeIn(delay: 200.ms).slideX(),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () => _openTransferScanner(selected),
                   icon: const Icon(Icons.compare_arrows),
                   label: const Text('Mutasi (Transfer)'),
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                ),
+                ).animate().fadeIn(delay: 300.ms).slideX(),
                 if (_status != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_status!, style: const TextStyle(color: Colors.green))),
                 const SizedBox(height: 24),
                 Text('Stok Gudang: $selectedWarehouseName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Query(
-                  options: QueryOptions(
-                    document: gql(r'''query { warehouses { id name stocks { quantity product { id name sku } } } }'''),
-                    fetchPolicy: FetchPolicy.networkOnly,
-                    pollInterval: const Duration(seconds: 1),
-                  ),
-                  builder: (stocksResult, {fetchMore, refetch}) {
-                    if (stocksResult.isLoading) return const Center(child: CircularProgressIndicator());
-                    if (stocksResult.hasException) return Text('Gagal memuat stok: ${stocksResult.exception}');
-                    final arr = (stocksResult.data?['warehouses'] as List?) ?? [];
-                    final selectedWarehouse = arr.cast<Map<String, dynamic>>().firstWhere(
-                      (w) => w['id']?.toString() == selected,
-                      orElse: () => <String, dynamic>{},
-                    );
-                    final itemsStocks = (selectedWarehouse['stocks'] as List?) ?? [];
-                    if (selected == null) {
-                      return const Text('Pilih gudang terlebih dahulu');
-                    }
-                    if (itemsStocks.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text('Produk atau barang tidak ada atau kosong', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                        ),
+                Expanded( // Added Expanded to allow scrolling list if needed, or just let it fit
+                  child: Query(
+                    options: QueryOptions(
+                      document: gql(r'''query { warehouses { id name stocks { quantity product { id name sku } } } }'''),
+                      fetchPolicy: FetchPolicy.networkOnly,
+                      pollInterval: const Duration(seconds: 1),
+                    ),
+                    builder: (stocksResult, {fetchMore, refetch}) {
+                      if (stocksResult.isLoading) return const Center(child: CircularProgressIndicator());
+                      if (stocksResult.hasException) return Text('Gagal memuat stok: ${stocksResult.exception}');
+                      final arr = (stocksResult.data?['warehouses'] as List?) ?? [];
+                      final selectedWarehouse = arr.cast<Map<String, dynamic>>().firstWhere(
+                        (w) => w['id']?.toString() == selected,
+                        orElse: () => <String, dynamic>{},
                       );
-                    }
+                      final itemsStocks = (selectedWarehouse['stocks'] as List?) ?? [];
+                      if (selected == null) {
+                        return const Text('Pilih gudang terlebih dahulu');
+                      }
+                      if (itemsStocks.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text('Produk atau barang tidak ada atau kosong', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                          ),
+                        );
+                      }
 
-                    // --- LOGIKA PERINGATAN STOK KURANG DARI 10 ---
-                    final lowStockItems = <String>[];
-                    final currentLowStockSkus = <String>{};
+                      // --- LOGIKA PERINGATAN STOK KURANG DARI 10 ---
+                      final lowStockItems = <String>[];
+                      final currentLowStockSkus = <String>{};
 
-                    for (final s in itemsStocks) {
-                      final qty = (s['quantity'] as int?) ?? 0;
-                      final pName = s['product']?['name']?.toString() ?? 'Produk';
-                      final pSku = s['product']?['sku']?.toString() ?? '';
-                      
-                      if (qty < 10) {
-                        currentLowStockSkus.add(pSku);
-                        if (!_warnedLowStockSkus.contains(pSku)) {
-                          lowStockItems.add('$pName ($qty)');
+                      for (final s in itemsStocks) {
+                        final qty = (s['quantity'] as int?) ?? 0;
+                        final pName = s['product']?['name']?.toString() ?? 'Produk';
+                        final pSku = s['product']?['sku']?.toString() ?? '';
+                        
+                        if (qty < 10) {
+                          currentLowStockSkus.add(pSku);
+                          if (!_warnedLowStockSkus.contains(pSku)) {
+                            lowStockItems.add('$pName ($qty)');
+                          }
                         }
                       }
-                    }
 
-                    // Bersihkan warned set jika stok sudah kembali normal
-                    _warnedLowStockSkus.removeWhere((sku) => !currentLowStockSkus.contains(sku));
+                      // Bersihkan warned set jika stok sudah kembali normal
+                      _warnedLowStockSkus.removeWhere((sku) => !currentLowStockSkus.contains(sku));
 
-                    if (lowStockItems.isNotEmpty) {
-                       // Gunakan post frame callback agar tidak error saat build
-                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                          // Pastikan dialog tidak muncul berulang kali jika user belum menutup atau baru saja muncul
-                          // Kita tandai item ini sudah di-warn
-                          for (final s in itemsStocks) {
-                             final pSku = s['product']?['sku']?.toString() ?? '';
-                             final qty = (s['quantity'] as int?) ?? 0;
-                             if (qty < 10) {
-                               _warnedLowStockSkus.add(pSku);
-                             }
-                          }
-                          
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Peringatan Stok Menipis!', style: TextStyle(color: Colors.red)),
-                              content: SingleChildScrollView(
-                                child: ListBody(
-                                  children: [
-                                    const Text('Produk berikut memiliki stok kurang dari 10. Harap segera restock/inbound!'),
-                                    const SizedBox(height: 10),
-                                    ...lowStockItems.map((item) => Text('• $item', style: const TextStyle(fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('OK, Saya Mengerti'),
-                                ),
-                              ],
-                            ),
-                          );
-                       });
-                    }
-                    // ---------------------------------------------
-
-                    return Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                color: Colors.grey.shade200,
-                                child: Row(
-                                  children: const [
-                                    Expanded(child: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    Expanded(child: Text('Nama', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    SizedBox(width: 80, child: Text('Qty', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
-                                  ],
-                                ),
-                              ),
-                              for (final s in itemsStocks)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
-                                  child: Row(
+                      if (lowStockItems.isNotEmpty) {
+                         // Gunakan post frame callback agar tidak error saat build
+                         WidgetsBinding.instance.addPostFrameCallback((_) {
+                            // Pastikan dialog tidak muncul berulang kali jika user belum menutup atau baru saja muncul
+                            // Kita tandai item ini sudah di-warn
+                            for (final s in itemsStocks) {
+                               final pSku = s['product']?['sku']?.toString() ?? '';
+                               final qty = (s['quantity'] as int?) ?? 0;
+                               if (qty < 10) {
+                                 _warnedLowStockSkus.add(pSku);
+                               }
+                            }
+                            
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Peringatan Stok Menipis!', style: TextStyle(color: Colors.red)),
+                                content: SingleChildScrollView(
+                                  child: ListBody(
                                     children: [
-                                      Expanded(child: Text((s['product']?['sku']?.toString() ?? '-'))),
-                                      Expanded(child: Text((s['product']?['name']?.toString() ?? '-'))),
-                                      SizedBox(width: 80, child: Text((s['quantity']?.toString() ?? '0'), textAlign: TextAlign.right)),
+                                      const Text('Produk berikut memiliki stok kurang dari 10. Harap segera restock/inbound!'),
+                                      const SizedBox(height: 10),
+                                      ...lowStockItems.map((item) => Text('• $item', style: const TextStyle(fontWeight: FontWeight.bold))),
                                     ],
                                   ),
                                 ),
-                            ],
-                          ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('OK, Saya Mengerti'),
+                                  ),
+                                ],
+                              ),
+                            );
+                         });
+                      }
+                      // ---------------------------------------------
+
+                      return SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)), 
+                                borderRadius: BorderRadius.circular(8),
+                                color: theme.cardColor,
+                              ),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    child: Row(
+                                      children: const [
+                                        Expanded(child: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        Expanded(child: Text('Nama', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        SizedBox(width: 80, child: Text('Qty', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
+                                      ],
+                                    ),
+                                  ),
+                                  for (final s in itemsStocks)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)))),
+                                      child: Row(
+                                        children: [
+                                          Expanded(child: Text((s['product']?['sku']?.toString() ?? '-'))),
+                                          Expanded(child: Text((s['product']?['name']?.toString() ?? '-'))),
+                                          SizedBox(width: 80, child: Text((s['quantity']?.toString() ?? '0'), textAlign: TextAlign.right)),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ).animate().fadeIn(delay: 400.ms).slideY(),
+                          ],
                         ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -85,33 +86,157 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Login Staff')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
-              if (_isRegister) TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nama')),
-              TextField(controller: _password, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _loading ? null : _onSubmit,
-                child: Text(_isRegister ? 'Register' : 'Login'),
+      body: Stack(
+        children: [
+          // Background Gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF0F172A), // Slate 900
+                  const Color(0xFF1E293B), // Slate 800
+                ],
               ),
-              TextButton(
-                onPressed: _loading ? null : () => setState(() { _isRegister = !_isRegister; _status = null; }),
-                child: Text(_isRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Register'),
-              ),
-              if (_status != null) Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(_status!, style: const TextStyle(color: Colors.red)),
-              ),
-            ],
+            ),
           ),
-        ),
+          // Subtle Grid or Glow (Optional - kept simple for now)
+          
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Logo / Title
+                    Icon(Icons.inventory_2_outlined, size: 64, color: primary)
+                        .animate().fadeIn(duration: 600.ms).scale(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'NEXUS',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4,
+                        color: Colors.white,
+                      ),
+                    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, end: 0),
+                    Text(
+                      'INVENTORY SYSTEM',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: Colors.grey,
+                        letterSpacing: 2,
+                      ),
+                    ).animate().fadeIn(delay: 400.ms),
+                    const SizedBox(height: 48),
+
+                    // Login Form Card
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            _isRegister ? 'Create Account' : 'Welcome Back',
+                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          TextField(
+                            controller: _email, 
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                            ),
+                          ).animate().fadeIn(delay: 600.ms).slideX(),
+                          
+                          const SizedBox(height: 16),
+                          
+                          if (_isRegister) 
+                            TextField(
+                              controller: _name, 
+                              decoration: const InputDecoration(
+                                labelText: 'Full Name',
+                                prefixIcon: Icon(Icons.person_outline),
+                              ),
+                            ).animate().fadeIn().slideX(),
+
+                          if (_isRegister) const SizedBox(height: 16),
+
+                          TextField(
+                            controller: _password, 
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ), 
+                            obscureText: true
+                          ).animate().fadeIn(delay: 800.ms).slideX(),
+                          
+                          const SizedBox(height: 24),
+                          
+                          ElevatedButton(
+                            onPressed: _loading ? null : _onSubmit,
+                            child: _loading 
+                              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Text(_isRegister ? 'REGISTER' : 'LOGIN'),
+                          ).animate().fadeIn(delay: 1000.ms).shimmer(delay: 2000.ms, duration: 1500.ms),
+                          
+                          const SizedBox(height: 16),
+                          
+                          TextButton(
+                            onPressed: _loading ? null : () => setState(() { _isRegister = !_isRegister; _status = null; }),
+                            child: Text(
+                              _isRegister ? 'Already have an account? Login' : 'Don\'t have an account? Register',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ).animate().fadeIn(delay: 1200.ms),
+                        ],
+                      ),
+                    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0),
+
+                    if (_status != null) Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          _status!, 
+                          style: const TextStyle(color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                      ).animate().fadeIn().shake(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
