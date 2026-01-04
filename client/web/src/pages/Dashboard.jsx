@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, gql } from '@apollo/client';
 import { Package, Warehouse, History, TrendingUp } from 'lucide-react';
 import {
@@ -28,6 +28,13 @@ const DASHBOARD_QUERY = gql`
     warehouses {
       id
       name
+      code
+      capacity
+      stocks {
+        quantity
+        product { id }
+      }
+      staffs { id }
     }
     transactions(limit: 20) {
       id
@@ -56,9 +63,10 @@ const Dashboard = () => {
   const { loading, error, data } = useQuery(DASHBOARD_QUERY, {
     pollInterval: 5000,
   });
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
 
   const chartData = useMemo(() => {
-    if (!data) return { categoryData: [], topProducts: [], activityData: [] };
+    if (!data) return { categoryData: [], topProducts: [], activityData: [], warehouseStats: [], branches: [] };
 
     // 1. Category Distribution
     const categoryMap = data.products.reduce((acc, product) => {
@@ -101,8 +109,33 @@ const Dashboard = () => {
 
     const activityData = Object.values(activityMap);
 
-    return { categoryData, topProducts, activityData };
+    const warehouseStats = (data.warehouses || []).map(w => {
+      const used = (w.stocks || []).reduce((acc, s) => acc + (s.quantity || 0), 0);
+      const productTypes = new Set((w.stocks || []).map(s => s.product?.id)).size;
+      const staffCount = (w.staffs || []).length;
+      return {
+        id: w.id,
+        name: w.name,
+        capacity: w.capacity || 0,
+        used,
+        productTypes,
+        staffCount,
+      };
+    });
+
+    const branches = (data.warehouses || []).filter(w => w.code !== 'WH-GUDANG-UTAMA' && w.code !== 'WH-MAIN');
+
+    return { categoryData, topProducts, activityData, warehouseStats, branches };
   }, [data]);
+
+  useEffect(() => {
+    if (!data) return;
+    const branchList = (data.warehouses || []).filter(w => w.code !== 'WH-GUDANG-UTAMA' && w.code !== 'WH-MAIN');
+    if (branchList.length === 0) return;
+    if (!selectedWarehouseId || !branchList.find(w => w.id === selectedWarehouseId)) {
+      setSelectedWarehouseId(branchList[0].id);
+    }
+  }, [data, selectedWarehouseId]);
 
   if (loading) return <div className="p-4 flex items-center justify-center min-h-[400px]">Memuat data dasbor...</div>;
   if (error) return <div className="p-4 text-red-500">Error: {error.message}</div>;
@@ -188,6 +221,112 @@ const Dashboard = () => {
              ) : (
                <div className="text-gray-400">Belum ada data kategori</div>
              )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Kapasitas Gudang (Pie)</h3>
+              <p className="text-xs text-gray-500">Lingkar abu-abu transparan = 100% kapasitas</p>
+            </div>
+            <div className="flex items-center">
+              {chartData.branches.length > 0 ? (
+                <select
+                  value={selectedWarehouseId || ''}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+                >
+                  {chartData.branches.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-gray-400">Tidak ada gudang cabang</span>
+              )}
+            </div>
+          </div>
+          <div className="h-[280px] w-full flex items-center justify-center">
+            {selectedWarehouseId ? (
+              (() => {
+                const stat = chartData.warehouseStats.find(ws => ws.id === selectedWarehouseId);
+                const capacity = stat?.capacity || 0;
+                const used = stat?.used || 0;
+                const utilization = capacity > 0 ? Math.min(100, Math.round((used / capacity) * 100)) : 0;
+                const backgroundData = [{ name: 'Capacity', value: 100 }];
+                const foregroundData = [
+                  { name: 'Terpakai', value: utilization },
+                  { name: 'Sisa', value: 100 - utilization }
+                ];
+                return (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={backgroundData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={110}
+                        dataKey="value"
+                      >
+                        <Cell fill="rgba(148,163,184,0.35)" />
+                      </Pie>
+                      <Pie
+                        data={foregroundData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={110}
+                        startAngle={90}
+                        endAngle={-270}
+                        dataKey="value"
+                        labelLine={false}
+                        label={({ value }) => `${value}%`}
+                      >
+                        <Cell fill="#06B6D4" />
+                        <Cell fill="rgba(0,0,0,0)" />
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                );
+              })()
+            ) : (
+              <div className="text-gray-400">Pilih gudang cabang untuk melihat kapasitas</div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold mb-6 text-gray-800">Jenis Produk per Gudang</h3>
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.warehouseStats} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{fontSize: 11}} interval={0} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="productTypes" name="Jenis Produk" fill="#10B981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold mb-6 text-gray-800">Jumlah Staf per Gudang</h3>
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.warehouseStats} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{fontSize: 11}} interval={0} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="staffCount" name="Staf" fill="#F59E0B" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
