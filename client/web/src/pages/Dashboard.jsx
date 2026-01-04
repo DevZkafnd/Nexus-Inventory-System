@@ -67,6 +67,8 @@ const Dashboard = () => {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
   const [selectedWarehouseTypesId, setSelectedWarehouseTypesId] = useState(null);
   const [selectedWarehouseStaffId, setSelectedWarehouseStaffId] = useState(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const CATEGORY_OPTIONS = ['makanan', 'minuman', 'skincare', 'household', 'elektronik'];
 
   const chartData = useMemo(() => {
     if (!data) return { categoryData: [], topProducts: [], activityData: [], warehouseStats: [], branches: [] };
@@ -312,7 +314,7 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
           <div className="flex items-start justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-800">Jenis Produk per Gudang</h3>
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               {chartData.branches.length > 0 ? (
                 <select
                   value={selectedWarehouseTypesId || ''}
@@ -326,6 +328,16 @@ const Dashboard = () => {
               ) : (
                 <span className="text-xs text-gray-400">Tidak ada gudang cabang</span>
               )}
+              <select
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+              >
+                <option value="ALL">Semua Kategori</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="h-[280px] w-full flex items-center justify-center">
@@ -334,10 +346,18 @@ const Dashboard = () => {
                 const warehouse = data.warehouses.find(w => w.id === selectedWarehouseTypesId);
                 const mapCat = new Map();
                 const prodCat = new Map((data.products || []).map(p => [p.id, p.category || 'Uncategorized']));
+                const allowed = new Set(CATEGORY_OPTIONS);
                 (warehouse?.stocks || []).forEach(s => {
-                  const cat = prodCat.get(s.product?.id) || 'Uncategorized';
+                  const raw = prodCat.get(s.product?.id) || 'uncategorized';
+                  const normalized = String(raw).toLowerCase().trim();
+                  if (selectedCategoryFilter !== 'ALL') {
+                    if (normalized !== selectedCategoryFilter) return;
+                  } else {
+                    if (!allowed.has(normalized)) return;
+                  }
+                  const display = normalized.charAt(0).toUpperCase() + normalized.slice(1);
                   const qty = s.quantity || 0;
-                  mapCat.set(cat, (mapCat.get(cat) || 0) + qty);
+                  mapCat.set(display, (mapCat.get(display) || 0) + qty);
                 });
                 const typeData = Array.from(mapCat.entries()).map(([name, value]) => ({ name, value }));
                 return typeData.length > 0 ? (
