@@ -364,7 +364,95 @@ mutation OutboundItem {
 
 ---
 
-## ️ Tech Stack & Spesifikasi
+## 📖 Studi Kasus Fitur (Deep Dive)
+
+Berikut adalah bedah detail alur kerja (end-to-end) dari dua fitur utama sistem ini: **Manajemen Produk (Web)** dan **Operasional Gudang (Mobile)**.
+
+### 1. 🖥️ Web Admin: Create Product (Full-Stack CRUD)
+Fitur ini mendemonstrasikan bagaimana sistem menangani input user, validasi tipe data, dan transaksi database multi-tabel dalam satu proses yang atomik.
+
+**Skenario:** Admin menambahkan produk baru dengan stok awal.
+
+1.  **Frontend (React & Apollo)**:
+    -   Admin mengisi form (Nama, SKU, Harga, Stok Awal).
+    -   Apollo Client mengirim mutation `createProduct`.
+    -   Jika sukses, cache otomatis diupdate dan list produk direfresh tanpa reload page (`refetchQueries`).
+
+2.  **Backend (GraphQL Resolver)**:
+    -   Menerima input dan mengonversi harga (`Float`) menjadi integer (`Cents`) untuk presisi database.
+    -   Menjalankan `prisma.$transaction` untuk menjamin integritas data:
+        1.  **Create Product**: Insert data master produk ke tabel `Product`.
+        2.  **Create Stock**: Jika ada stok awal, insert ke tabel `StockItem`.
+        3.  **Log Transaction**: Mencatat riwayat `INITIAL_ADJUSTMENT` di tabel `Transaction`.
+    -   Jika salah satu langkah gagal, seluruh perubahan dibatalkan (Rollback).
+
+**Code Snippet (Resolver Logic):**
+```typescript
+// backend/src/resolvers/product.ts
+return await prisma.$transaction(async (tx) => {
+  // 1. Buat Produk
+  const product = await tx.product.create({
+    data: { sku, name, priceCents, ... },
+  })
+
+  // 2. Buat Stok & Log Transaksi (Jika ada initialStock)
+  if (initialStock > 0) {
+    await tx.stockItem.create({ ... })
+    await tx.transaction.create({
+      data: { type: 'INITIAL_ADJUSTMENT', ... },
+    })
+  }
+  return product
+})
+```
+
+---
+
+### 2. 📱 Mobile App: Inbound Stock (Staff Operation)
+Fitur ini dirancang khusus untuk Staff Gudang agar dapat melakukan *restock* barang secara terkontrol dari Gudang Utama.
+
+**Skenario:** Staff Gudang Cabang meminta stok barang dari Gudang Utama.
+
+1.  **Mobile UI (Flutter)**:
+    -   Staff membuka menu "Inbound".
+    -   Aplikasi memvalidasi stok yang tersedia di **Gudang Utama** (WH-GUDANG-UTAMA).
+    -   Staff memilih produk dan memasukkan jumlah yang ingin diambil.
+
+2.  **Validasi & Eksekusi**:
+    -   **Client-Side Check**: Mencegah input melebihi stok tersedia di pusat.
+    -   **Mutation**: Mengirim `transferStock` dengan parameter:
+        -   `from`: Gudang Utama
+        -   `to`: Gudang Staff (Saat ini)
+        -   `qty`: Jumlah barang
+
+3.  **Backend Processing**:
+    -   Server mengurangi stok di Gudang Utama.
+    -   Server menambah stok di Gudang Cabang.
+    -   Transaksi dicatat sebagai perpindahan stok yang sah, mencegah "Stok Hantu" (barang muncul tiba-tiba tanpa asal-usul).
+
+**Code Snippet (Mobile Logic):**
+```dart
+// client/mobile/lib/screens/dashboard_screen.dart
+final m = gql(r'''
+  mutation($from:ID!, $to:ID!, $pid:ID!, $qty:Int!) { 
+    transferStock(fromWarehouseId:$from, toWarehouseId:$to, productId:$pid, quantity:$qty) { id } 
+  }
+''');
+
+await client.mutate(MutationOptions(
+  document: m, 
+  variables: {
+    'from': mainWarehouseId,
+    'to': currentWarehouseId,
+    'pid': selectedProductId,
+    'qty': inputQty,
+  }
+));
+```
+
+---
+
+## 🛠️ Tech Stack & Spesifikasi
 
 | Layer | Teknologi | Deskripsi |
 | :--- | :--- | :--- |
