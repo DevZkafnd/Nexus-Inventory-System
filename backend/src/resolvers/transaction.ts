@@ -101,6 +101,7 @@ export const transactionResolvers = {
       { prisma, userId }: { prisma: PrismaClient; userId?: string }
     ) => {
       const quantity = args.quantity
+      if (quantity <= 0) throw new Error('Quantity harus lebih besar dari 0')
       
       // Cari Gudang Utama (Prioritas: Code WH-GUDANG-UTAMA, lalu WH-MAIN, lalu nama mengandung Utama/Main/Pusat)
       let sourceWarehouse = await prisma.warehouse.findFirst({
@@ -201,6 +202,7 @@ export const transactionResolvers = {
       { prisma, userId }: { prisma: PrismaClient; userId?: string }
     ) => {
       const quantity = args.quantity
+      if (quantity <= 0) throw new Error('Quantity harus lebih besar dari 0')
       return await prisma.$transaction(async (tx) => {
         const stock = await tx.stockItem.findUnique({
           where: { productId_warehouseId: { productId: args.productId, warehouseId: args.warehouseId } },
@@ -255,6 +257,7 @@ export const transactionResolvers = {
       { prisma }: { prisma: PrismaClient }
     ) => {
       const quantity = args.quantity
+      if (quantity <= 0) throw new Error('Quantity harus lebih besar dari 0')
         const note = args.note ?? undefined
 
         return await prisma.$transaction(async (tx) => {

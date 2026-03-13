@@ -124,7 +124,35 @@ async function ensurePlaygroundSeed() {
     create: { sku: 'SKU-PLAYGROUND-1', name: 'Produk Playground', category: 'Kategori', priceCents: 1250 },
   })
 
-  return { warehouseAId: warehouseA.id, warehouseBId: warehouseB.id, productId: product.id }
+  await prisma.stockItem.upsert({
+    where: { productId_warehouseId: { productId: product.id, warehouseId: warehouseMain.id } },
+    update: { quantity: 100 },
+    create: { productId: product.id, warehouseId: warehouseMain.id, quantity: 100 },
+  })
+
+  const staffEmail = 'staff@contoh.com'
+  const existingStaff = await prisma.user.findUnique({ where: { email: staffEmail } })
+  const staffName = 'Staff Playground'
+  const staffRole = 'STAFF' as const
+  const staffPassword = 'staff1234'
+
+  const { randomBytes, pbkdf2Sync } = await import('crypto')
+  const staffSalt = randomBytes(16).toString('hex')
+  const staffHash = pbkdf2Sync(staffPassword, staffSalt, 120000, 32, 'sha256').toString('hex')
+
+  const staffUserId = existingStaff
+    ? existingStaff.id
+    : (await prisma.user.create({
+        data: { email: staffEmail, name: staffName, role: staffRole, passwordSalt: staffSalt, passwordHash: staffHash },
+      })).id
+
+  return {
+    warehouseMainId: warehouseMain.id,
+    warehouseAId: warehouseA.id,
+    warehouseBId: warehouseB.id,
+    productId: product.id,
+    staffUserId,
+  }
 }
 
 async function ensureAdminSeed() {
@@ -153,47 +181,134 @@ async function ensureAdminSeed() {
 await waitForDb()
 await ensureWarehouseCodes()
 const seed = await ensurePlaygroundSeed()
-await ensureAdminSeed()
+const adminUserId = await ensureAdminSeed()
 
 const defaultDocument = `
 # Langkah awal: cek data seed yang sudah disiapkan
 query SeedCheck {
-  products { id sku name price }
-  warehouses { id name location capacity code }
+  products {
+    id
+    sku
+    name
+    category
+    price
+    totalStock
+    isLowStock
+    stocks {
+      warehouse { id name code }
+      quantity
+    }
+  }
+  warehouses {
+    id
+    name
+    location
+    capacity
+    code
+    staffs { id name email role }
+    stocks {
+      product { id sku name }
+      quantity
+    }
+  }
+  users { id email name role }
+  transactions(limit: 20) {
+    id
+    type
+    quantity
+    timestamp
+    referenceNote
+    product { id sku name }
+    sourceWarehouse { id name code }
+    targetWarehouse { id name code }
+  }
 }
 
-# Contoh create, bisa diubah nilainya sebelum run
+# Auth: login mengembalikan userId (pakai di header x-user-id untuk query me)
+mutation LoginAdminPlayground {
+  login(email: "admin@contoh.com", password: "admin1234")
+}
+
+mutation LoginStaffPlayground {
+  login(email: "staff@contoh.com", password: "staff1234")
+}
+
+query MePlayground {
+  me { id email name role warehouses { id name code } }
+}
+
+# Contoh create/update/delete (bisa diubah nilainya sebelum run)
 mutation CreateWarehouseSample {
   createWarehouse(name: "Gudang Sample", location: "Surabaya", code: "WH-SAMPLE-01", capacity: 120) { id name location capacity code }
 }
 
-mutation CreateProductSample {
-  createProduct(sku: "SKU-SAMPLE-001", name: "Produk Sample", category: "Kategori", price: 12.5) { id sku name category price }
+mutation UpdateWarehousePlayground {
+  updateWarehouse(id: "${seed.warehouseBId}", name: "Gudang Playground B (Updated)", location: "Bandung", code: "WH-PLAY-B", capacity: 90) {
+    id name location code capacity
+  }
 }
 
-# Operasi yang langsung bisa jalan menggunakan ID seed
+mutation DeleteWarehouseSample {
+  deleteWarehouse(id: "PASTE_WAREHOUSE_ID_HERE")
+}
+
+mutation CreateProductSample {
+  createProduct(sku: "SKU-SAMPLE-001", name: "Produk Sample", category: "Kategori", price: 12.5, initialStock: 0) { id sku name category price totalStock }
+}
+
+mutation DeleteProductSample {
+  deleteProduct(id: "PASTE_PRODUCT_ID_HERE")
+}
+
+# Operasi stok: jalankan Inbound dulu sebelum Outbound/Transfer
 mutation InboundStockPlayground {
-  inboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 10, note: "Restock") {
+  inboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 10, note: "Inbound ke Gudang A") {
     id type quantity timestamp referenceNote
+    product { id sku name totalStock }
+    sourceWarehouse { id name code }
+    targetWarehouse { id name code }
   }
 }
 
 mutation OutboundStockPlayground {
-  outboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 5, note: "Kirim") {
+  outboundStock(warehouseId: "${seed.warehouseAId}", productId: "${seed.productId}", quantity: 5, note: "Outbound dari Gudang A") {
     id type quantity timestamp referenceNote
+    product { id sku name totalStock }
+    sourceWarehouse { id name code }
   }
 }
 
 mutation TransferStockPlayground {
-  transferStock(fromWarehouseId: "${seed.warehouseAId}", toWarehouseId: "${seed.warehouseBId}", productId: "${seed.productId}", quantity: 3, note: "Mutasi") {
-    id type quantity sourceWarehouse { id name } targetWarehouse { id name } referenceNote
+  transferStock(fromWarehouseId: "${seed.warehouseAId}", toWarehouseId: "${seed.warehouseBId}", productId: "${seed.productId}", quantity: 3, note: "Transfer A -> B") {
+    id type quantity referenceNote timestamp
+    product { id sku name totalStock }
+    sourceWarehouse { id name code }
+    targetWarehouse { id name code }
   }
 }
 
 mutation UpdateProductPlayground {
   updateProduct(id: "${seed.productId}", name: "Nama Baru Playground", price: 99.99, category: "Kategori Baru") {
-    id name price category
+    id sku name price category totalStock isLowStock
   }
+}
+
+query ProductBySkuPlayground {
+  productBySku(sku: "SKU-PLAYGROUND-1") {
+    id sku name category price totalStock
+  }
+}
+
+mutation AssignStaffToWarehousePlayground {
+  assignStaffToWarehouse(userId: "${seed.staffUserId}", warehouseId: "${seed.warehouseAId}")
+}
+
+mutation UnassignStaffFromWarehousePlayground {
+  unassignStaffFromWarehouse(userId: "${seed.staffUserId}", warehouseId: "${seed.warehouseAId}")
+}
+
+query UserByIdPlayground {
+  user(id: "${adminUserId}") { id email name role warehouses { id name code } }
 }
 `;
 

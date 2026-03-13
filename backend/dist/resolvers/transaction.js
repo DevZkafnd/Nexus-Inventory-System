@@ -66,6 +66,8 @@ export const transactionResolvers = {
         },
         inboundStock: async (_, args, { prisma, userId }) => {
             const quantity = args.quantity;
+            if (quantity <= 0)
+                throw new Error('Quantity harus lebih besar dari 0');
             // Cari Gudang Utama (Prioritas: Code WH-GUDANG-UTAMA, lalu WH-MAIN, lalu nama mengandung Utama/Main/Pusat)
             let sourceWarehouse = await prisma.warehouse.findFirst({
                 where: { code: 'WH-GUDANG-UTAMA' }
@@ -149,16 +151,34 @@ export const transactionResolvers = {
         },
         outboundStock: async (_, args, { prisma, userId }) => {
             const quantity = args.quantity;
+            if (quantity <= 0)
+                throw new Error('Quantity harus lebih besar dari 0');
             return await prisma.$transaction(async (tx) => {
                 const stock = await tx.stockItem.findUnique({
                     where: { productId_warehouseId: { productId: args.productId, warehouseId: args.warehouseId } },
                 });
                 if (!stock || stock.quantity < quantity)
                     throw new Error('Stok tidak mencukupi untuk outbound!');
-                await tx.stockItem.update({
+                const updatedStock = await tx.stockItem.update({
                     where: { productId_warehouseId: { productId: args.productId, warehouseId: args.warehouseId } },
                     data: { quantity: { decrement: quantity } },
                 });
+                // LOGIKA BARU: Hapus stok dari cabang jika 0 DAN stok di Gudang Utama juga 0
+                if (updatedStock.quantity === 0) {
+                    const mainWarehouse = await tx.warehouse.findFirst({ where: { code: 'WH-GUDANG-UTAMA' } });
+                    // Hanya berlaku jika ini BUKAN Gudang Utama
+                    if (mainWarehouse && args.warehouseId !== mainWarehouse.id) {
+                        const mainStock = await tx.stockItem.findUnique({
+                            where: { productId_warehouseId: { productId: args.productId, warehouseId: mainWarehouse.id } }
+                        });
+                        // Jika Gudang Utama juga kosong (0 atau tidak ada record)
+                        if (!mainStock || mainStock.quantity === 0) {
+                            await tx.stockItem.delete({
+                                where: { productId_warehouseId: { productId: args.productId, warehouseId: args.warehouseId } }
+                            });
+                        }
+                    }
+                }
                 const note = args.note ?? (userId ? `Outbound by staff ${userId}` : null);
                 return await tx.transaction.create({
                     data: {
@@ -174,6 +194,8 @@ export const transactionResolvers = {
         },
         transferStock: async (_, args, { prisma }) => {
             const quantity = args.quantity;
+            if (quantity <= 0)
+                throw new Error('Quantity harus lebih besar dari 0');
             const note = args.note ?? undefined;
             return await prisma.$transaction(async (tx) => {
                 const sourceStock = await tx.stockItem.findUnique({
@@ -182,10 +204,24 @@ export const transactionResolvers = {
                 if (!sourceStock || sourceStock.quantity < quantity) {
                     throw new Error('Stok tidak mencukupi untuk transfer!');
                 }
-                await tx.stockItem.update({
+                const updatedSourceStock = await tx.stockItem.update({
                     where: { productId_warehouseId: { productId: args.productId, warehouseId: args.fromWarehouseId } },
                     data: { quantity: { decrement: quantity } },
                 });
+                // LOGIKA BARU: Hapus stok dari cabang jika 0 DAN stok di Gudang Utama juga 0
+                if (updatedSourceStock.quantity === 0) {
+                    const mainWarehouse = await tx.warehouse.findFirst({ where: { code: 'WH-GUDANG-UTAMA' } });
+                    if (mainWarehouse && args.fromWarehouseId !== mainWarehouse.id) {
+                        const mainStock = await tx.stockItem.findUnique({
+                            where: { productId_warehouseId: { productId: args.productId, warehouseId: mainWarehouse.id } }
+                        });
+                        if (!mainStock || mainStock.quantity === 0) {
+                            await tx.stockItem.delete({
+                                where: { productId_warehouseId: { productId: args.productId, warehouseId: args.fromWarehouseId } }
+                            });
+                        }
+                    }
+                }
                 await tx.stockItem.upsert({
                     where: { productId_warehouseId: { productId: args.productId, warehouseId: args.toWarehouseId } },
                     update: { quantity: { increment: quantity } },
